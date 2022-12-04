@@ -15,6 +15,8 @@ const options: DataSourceOptions = {
   entities: Object.values(Model),
 };
 
+console.log('=> database connecting...');
+
 const dataSource = new DataSource(options);
 dataSource.initialize().then(
   (dataSource) => console.log('database connected!'),

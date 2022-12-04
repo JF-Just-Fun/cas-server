@@ -24,7 +24,7 @@ export const index = (req: Request, res: Response, next: NextFunction): Promise<
  * @method POST
  */
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { name, password, email, phoneNumber, avatar } = req.body;
+  const { name, password, email, phone, avatar } = req.body;
   console.log(email);
 
   const repository = dataSource.getRepository(User);
@@ -44,10 +44,9 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     name,
     password: encryption(password),
     email,
-    phoneNumber,
+    phone,
     avatar,
     account_id: getuuid(),
-    active: true,
   });
 
   res.status(200).json({

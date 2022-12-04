@@ -14,54 +14,65 @@ import LoginLog from './loginLog';
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
+
   // 昵称
   @Column('varchar', { length: 20, unique: true })
   name: string;
+
   // 密码
-  @Column('varchar', { unique: true, length: 200 })
+  @Column('varchar', { length: 200 })
   password: string;
+
   // 性别
-  @Column('int', { unique: false })
-  gender: number;
+  @Column('varchar', { nullable: true })
+  gender: string;
+
   // 邮箱
   @Column('varchar', { nullable: true, unique: true, length: 20 })
   email: string;
+
   // 生日
-  @Column('date')
+  @Column('date', { nullable: true })
   birth: string;
+
   //账号id（UUID）
-  @Column('varchar', { nullable: true, unique: true, length: 200 })
+  @Column('varchar', { unique: true, length: 200 })
   account_id: string;
+
   // 电话
-  @Column('varchar', { unique: false, length: 20 })
-  phoneNumber: string;
+  @Column('varchar', { nullable: true, unique: true, length: 20 })
+  phone: string;
+
   // 头像
-  @Column('varchar', { nullable: false })
+  @Column('varchar', { default: '/avatar' })
   avatar: string;
+
+  // 管理身份
+  @Column('boolean', { default: false })
+  manager: boolean;
+
   // 外键
   @OneToMany(() => LoginLog, (loginLog) => loginLog.user)
   LoginLog: LoginLog[];
+
   // 是否启用
   @Column('boolean', { default: true })
   active: boolean;
 
   @CreateDateColumn({
     name: 'create_time',
-    nullable: true,
   })
   createTime: Date;
 
   @UpdateDateColumn({
     name: 'update_time',
-    nullable: true,
   })
-  updateTime: Date | null;
+  updateTime: Date;
 
   @DeleteDateColumn({
     name: 'delete_at',
-    nullable: true,
   })
-  deleteAt: Date | null;
+  deleteTime: Date;
 }
 
 export default User;
