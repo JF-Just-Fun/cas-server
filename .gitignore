@@ -1,0 +1,14 @@
+# dependencies
+**/node_modules
+
+# environment config
+**/.env.*
+
+# production
+**/build
+
+# docker data
+docker
+
+# vscode setting
+.vscode
