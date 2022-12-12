@@ -1,6 +1,16 @@
 version: '3'
 
 services:
+  app:
+    build: .
+    image: cas_express
+    container_name: cas_express
+    restart: always
+    environment:
+      APP_PORT: ${APP_PORT}
+    ports:
+      - ${APP_PORT}:${APP_PORT}
+
   db_postgres:
     image: mysql:8.0.31
     container_name: mysql8

@@ -2,10 +2,13 @@
   "name": "express-admin",
   "version": "0.0.0",
   "private": true,
+  "engines": {
+    "node": ">=16.15.0 <17.0.0"
+  },
   "scripts": {
     "prepare": "husky install",
     "test": "echo 'test scripts'",
-    "start": "cross-env NODE_ENV=production nodemon -w ./src -e ts,js,json --exec ts-node ./bin/www",
+    "start": "cross-env NODE_ENV=development nodemon -w ./src -e ts,js,json --exec ts-node ./bin/www",
     "start:production": "cross-env NODE_ENV=production nodemon ./bin/www"
   },
   "dependencies": {

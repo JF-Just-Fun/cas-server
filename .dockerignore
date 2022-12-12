@@ -1,0 +1,18 @@
+# markdown
+**/*.md
+
+# dependencies
+**/node_modules
+
+# production
+**/build
+**/dist
+
+# docker data
+docker
+
+# vscode setting
+.vscode
+.husky
+.git
+.github

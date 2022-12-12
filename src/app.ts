@@ -8,9 +8,7 @@ import dotenv from 'dotenv';
 import cookieSession from 'cookie-session';
 import expressip from 'express-ip';
 
-dotenv.config({
-  path: process.env.NODE_ENV ? `.env.${process.env.NODE_ENV}` : null,
-});
+dotenv.config();
 
 import routerInit from './routes';
 
