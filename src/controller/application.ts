@@ -3,7 +3,7 @@ import createError from 'http-errors';
 import { has } from 'lodash';
 import { dataSource, redis } from '../database';
 import { LoginLog, User, Application } from '../models';
-import { encryption, valid, getToken, getuuid } from '../util';
+import { encryption, valid, getToken, getuuid, validate, success, fail } from '../util';
 
 /**
  * index
@@ -23,19 +23,30 @@ export const index = (req: Request, res: Response, next: NextFunction): Promise<
  * @method POST
  */
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { name, ip, domain, desc } = req.body;
+  const { name, ip, domain, desc, code, result } = validate(
+    res,
+    {
+      name: { type: 'string', required: true },
+      ip: { type: 'string', required: true },
+      domain: { type: 'string', required: true },
+      desc: { type: 'string', required: false },
+    },
+    req.body,
+  );
+  // 参数校验
+  if (code) {
+    fail(res, 22, `参数校验错误`, result);
+    return;
+  }
+  // 获取项目唯一标识token
   const token = await getToken();
 
   const repository = dataSource.getRepository(Application);
   const appInfo = await repository.findOne({ where: [{ ip }, { domain }] });
-  console.log(appInfo);
 
   // user repeated
   if (appInfo) {
-    res.status(403).json({
-      code: 100,
-      msg: `${domain}_${ip} exited!`,
-    });
+    fail(res, 28, `${domain}_${ip} exited!`, {});
     return;
   }
 
@@ -48,10 +59,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     token,
   });
 
-  res.status(200).json({
-    code: 0,
-    msg: `${name} register success`,
-  });
+  success(res, '成功', {});
   return;
 };
 
@@ -64,7 +72,21 @@ export const register = async (req: Request, res: Response, next: NextFunction):
  * @method POST
  */
 export const update = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { name, ip, desc, active } = req.body;
+  const { name, ip, active, desc, code, result } = validate(
+    res,
+    {
+      name: { type: 'string', required: true },
+      ip: { type: 'string', required: true },
+      active: { type: 'number', required: true },
+      desc: { type: 'string', required: false },
+    },
+    req.body,
+  );
+  // 参数校验
+  if (code) {
+    fail(res, 22, `参数校验错误`, result);
+    return;
+  }
   const { id } = req.params;
 
   const repository = dataSource.getRepository(Application);
@@ -72,10 +94,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
 
   // user repeated
   if (!appInfo) {
-    res.status(403).json({
-      code: 100,
-      msg: `${ip} no find!`,
-    });
+    fail(res, 100, `${ip} not exited!`, {});
     return;
   }
   await repository.update(
@@ -88,9 +107,47 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
     },
   );
 
-  res.status(200).json({
-    code: 0,
-    msg: `${name} register success`,
+  success(res, `${name} update success`, {});
+  return;
+};
+
+/**
+ * 项目列表
+ * @param req.query.domain string
+ * @param req.query.page string
+ * @param req.query.size string
+ * @param req.query.ip string
+ * @method POST
+ */
+export const list = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
+  const { page, size, domain, ip, code, result } = validate(
+    res,
+    {
+      page: { type: 'number', required: true },
+      size: { type: 'number', required: true },
+      domain: { type: 'string', required: false },
+      ip: { type: 'string', required: false },
+    },
+    req.query,
+  );
+  // 参数校验
+  if (code) {
+    fail(res, 22, `参数校验错误`, result);
+    return;
+  }
+
+  const repository = dataSource.getRepository(Application);
+  const appList = await repository.findAndCount({ take: size, skip: (page - 1) * size });
+  console.log(appList);
+
+  // user repeated
+  if (!appList) {
+    fail(res, 28, `查询失败`, {});
+    return;
+  }
+  success(res, '成功', {
+    rows: appList[0] || [],
+    count: appList[1] || 0,
   });
   return;
 };

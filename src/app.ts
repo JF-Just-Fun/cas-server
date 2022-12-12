@@ -5,6 +5,9 @@ import path from 'path';
 import cookieParser from 'cookie-parser';
 import logger from 'morgan';
 import dotenv from 'dotenv';
+import cookieSession from 'cookie-session';
+import expressip from 'express-ip';
+
 dotenv.config({
   path: process.env.NODE_ENV ? `.env.${process.env.NODE_ENV}` : null,
 });
@@ -22,6 +25,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+// 引入cookie-session
+app.set('trust proxy', 1);
+app.use(
+  cookieSession({
+    name: 'CAS_TGC',
+    keys: ['JeCGbh2H96WZnN7N'],
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  }),
+);
+app.use(expressip().getIpInfoMiddleware);
 
 // router initialisation
 routerInit(app);

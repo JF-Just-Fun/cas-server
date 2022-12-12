@@ -5,7 +5,7 @@
   "scripts": {
     "prepare": "husky install",
     "test": "echo 'test scripts'",
-    "start": "nodemon -w ./src -e ts,js,json --exec ts-node ./bin/www",
+    "start": "cross-env NODE_ENV=production nodemon -w ./src -e ts,js,json --exec ts-node ./bin/www",
     "start:production": "cross-env NODE_ENV=production nodemon ./bin/www"
   },
   "dependencies": {
@@ -13,7 +13,9 @@
     "@alicloud/openapi-client": "^0.4.1",
     "@alicloud/tea-util": "^1.4.3",
     "cookie-parser": "~1.4.4",
+    "cookie-session": "^2.0.0",
     "express": "~4.16.1",
+    "express-ip": "^1.0.4",
     "http-errors": "~1.6.3",
     "ioredis": "^4.28.5",
     "lodash": "^4.17.21",
