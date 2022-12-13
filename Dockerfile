@@ -8,10 +8,8 @@ WORKDIR /app
 COPY . /app
 
 # install the dependencies
-RUN npm ci
+RUN cd /app \
+    && npm ci
 
 # open port 5000
 EXPOSE 5000
-
-# run the server
-CMD npm run start
