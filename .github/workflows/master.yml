@@ -30,14 +30,14 @@ jobs:
           SOURCE: ./
           REMOTE_HOST: ${{ secrets.SERVER_HOST }}
           REMOTE_USER: ${{ secrets.SERVER_USER }}
-          TARGET: ${{SERVER_PROJECT_TARGET}}
+          TARGET: ${{ secrets.SERVER_PROJECT_TARGET }}
           EXCLUDE: '/dist, /node_modules, /build, /docker'
 
       - name: run docker compose
         uses: D3rHase/ssh-command-action@main
         with:
-          host: ${{secrets.SERVER_HOST}} # Remote server address / ip - required
-          user: ${{secrets.SERVER_USER}} # Remote server user - required
-          private_key: ${{secrets.SERVER_SSH_PRIVATE_KEY}} # Private ssh key registered on the remote server - required
+          host: ${{ secrets.SERVER_HOST }} # Remote server address / ip - required
+          user: ${{ secrets.SERVER_USER }} # Remote server user - required
+          private_key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }} # Private ssh key registered on the remote server - required
           # Command to be executed - Default: echo 'hello world' - optional
           command: cd /project/nginx/projects/_api && docker-compose stop && docker-compose up -d --build
