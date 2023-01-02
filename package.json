@@ -7,7 +7,6 @@
   },
   "scripts": {
     "prepare": "husky install",
-    "test": "echo 'test scripts'",
     "start": "cross-env NODE_ENV=development nodemon -w ./src -e ts,js,json --exec ts-node ./bin/www",
     "start:production": "cross-env NODE_ENV=production nodemon ./bin/www"
   },

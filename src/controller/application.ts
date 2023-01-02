@@ -24,7 +24,6 @@ export const index = (req: Request, res: Response, next: NextFunction): Promise<
  */
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { name, ip, domain, desc, code, result } = validate(
-    res,
     {
       name: { type: 'string', required: true },
       ip: { type: 'string', required: true },
@@ -73,7 +72,6 @@ export const register = async (req: Request, res: Response, next: NextFunction):
  */
 export const update = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { name, ip, active, desc, code, result } = validate(
-    res,
     {
       name: { type: 'string', required: true },
       ip: { type: 'string', required: true },
@@ -121,7 +119,6 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
  */
 export const list = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { page, size, domain, ip, code, result } = validate(
-    res,
     {
       page: { type: 'number', required: true },
       size: { type: 'number', required: true },
