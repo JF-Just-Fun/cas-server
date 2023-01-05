@@ -29,8 +29,8 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     {
       name: { type: 'string', required: true },
       password: { type: 'string', required: true },
-      email: { type: 'string', required: true },
-      phone: { type: 'string', required: false },
+      email: { type: 'string', required: true, validation: valid.isEmail },
+      phone: { type: 'string', required: false, validation: valid.isPhone },
       avatar: { type: 'string', required: false },
     },
     req.body,
@@ -41,15 +41,16 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     return;
   }
   const repository = dataSource.getRepository(User);
-  const user = await repository.findOne({ where: [{ email }] });
-  console.log(user);
+  const user = await repository.findOne({ where: [{ email }, { phone }, { name }] });
 
   // user repeated
   if (user) {
-    res.status(403).json({
-      code: 100,
-      msg: `${name} exited!`,
-    });
+    const message = [];
+    if (user.name === name) message.push(`用户名:${name}已存在`);
+    if (user.email === email) message.push(`邮箱:${email}已存在`);
+    if (user.phone === phone) message.push(`手机号:${phone}已存在`);
+
+    fail(res, 100, message.join(';'));
     return;
   }
 
@@ -77,7 +78,7 @@ export const login = async (req: any, res: Response, next: NextFunction): Promis
     {
       email: { type: 'string', required: true },
       password: { type: 'string', required: true },
-      fromUrl: { type: 'string', from: req.query, validation: valid['isUrl'] },
+      fromUrl: { type: 'string', from: req.query, validation: valid.isUrl },
     },
     req.body,
   );
@@ -149,7 +150,7 @@ export const login = async (req: any, res: Response, next: NextFunction): Promis
 export const checkST = async (req: any, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { fromUrl, ST, token, code, result } = validate(
     {
-      fromUrl: { type: 'string', required: true, validation: valid['isUrl'] },
+      fromUrl: { type: 'string', required: true, validation: valid.isUrl },
       ST: { type: 'string', required: false },
     },
     req.body,
@@ -196,7 +197,7 @@ export const checkST = async (req: any, res: Response, next: NextFunction): Prom
  * 获取用户简介，验证用户是否登录
  * @method GET
  */
-export const profile = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
+export const profile = async (req: any, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { CAS_TGC } = req.cookies;
 
   if (!CAS_TGC) {

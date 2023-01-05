@@ -25,10 +25,11 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 // 引入cookie-session
 app.set('trust proxy', 1);
+
 app.use(
   cookieSession({
-    name: 'CAS_TGC',
-    keys: ['JeCGbh2H96WZnN7N'],
+    name: 'CAS_TGC_SESSION',
+    keys: [process.env.COOKIE_SESSION_KEY],
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
   }),
 );
