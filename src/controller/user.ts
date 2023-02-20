@@ -109,7 +109,8 @@ export const login = async (req: any, res: Response, next: NextFunction): Promis
     fail(res, 23, '该用户已禁用', {});
     return;
   }
-  req.session.userinfo = {
+
+  const userInfo = {
     name: user.name,
     email: user.email,
     account_id: user.account_id,
@@ -119,18 +120,18 @@ export const login = async (req: any, res: Response, next: NextFunction): Promis
   };
 
   // 生成TGT
-  const TGT = cipher(req.session.userinfo);
+  const TGT = cipher(userInfo);
 
   // 生成TGC
   const TGC = cryptoHASH(TGT);
 
   res.cookie('CAS_TGC', TGC, { maxAge: 365 * 24 * 60 * 60 * 1000, httpOnly: true });
 
-  redis.setex(`TGC:${TGC}`, 365 * 24 * 60 * 60, TGT);
+  redis.setex(`TGT:${TGC}`, 365 * 24 * 60 * 60, TGT);
 
   // cas client admin
   if (!fromUrl) {
-    success(res, '成功', req.session.userinfo);
+    success(res, '成功', userInfo);
     return;
   }
 
@@ -174,21 +175,24 @@ export const checkST = async (req: any, res: Response, next: NextFunction): Prom
     fail(res, 31, `认证失败,ip未授权`, {});
     return;
   }
-  if (!req.session.userinfo) {
+  const userInfo = {
+    ST: null,
+  };
+  if (!userInfo) {
     fail(res, 32, `认证失败,未登录cas`, {});
     return;
   }
-  if (!req.session.userinfo[`${fromUrl}_ST`] || !ST || ST !== req.session.userinfo.ST) {
+  if (!userInfo[`${fromUrl}_ST`] || !ST || ST !== userInfo.ST) {
     // 生成ST
     const ST = await getST();
-    req.session.userinfo[`${fromUrl}_ST`] = ST;
+    userInfo[`${fromUrl}_ST`] = ST;
     console.log(ST);
 
     fail(res, 32, `认证失败,没有对应的ST，ST已重置，请用新的ST请求`, { ST });
     return;
   }
   // 提示认证成功
-  req.session.userinfo[`${fromUrl}_ST`] = null;
+  userInfo[`${fromUrl}_ST`] = null;
   success(res);
   return;
 };

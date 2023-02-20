@@ -15,7 +15,6 @@
     "@alicloud/openapi-client": "^0.4.1",
     "@alicloud/tea-util": "^1.4.3",
     "cookie-parser": "~1.4.4",
-    "cookie-session": "^2.0.0",
     "express": "~4.16.1",
     "express-ip": "^1.0.4",
     "http-errors": "~1.6.3",

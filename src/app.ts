@@ -5,15 +5,11 @@ import path from 'path';
 import cookieParser from 'cookie-parser';
 import logger from 'morgan';
 import dotenv from 'dotenv';
-import cookieSession from 'cookie-session';
 import expressip from 'express-ip';
 
 dotenv.config();
 
 import routerInit from './routes';
-
-// database initialisation
-// import "./database/connection";
 
 const app: Express = express();
 
@@ -23,16 +19,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-// 引入cookie-session
-app.set('trust proxy', 1);
-
-app.use(
-  cookieSession({
-    name: 'CAS_TGC_SESSION',
-    keys: [process.env.COOKIE_SESSION_KEY],
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-  }),
-);
 app.use(expressip().getIpInfoMiddleware);
 
 // router initialisation
