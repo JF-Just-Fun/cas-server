@@ -2,22 +2,24 @@ import crypto from 'crypto';
 import { uniqueId } from 'lodash';
 
 /**
- * 对数据使用sha1方式加密(不可逆加密)
+ * 对数据使用sha1方式加密(加盐)(不可逆加密)
  * @param data string
- * @returns string
+ * @returns {string} 加密数据
  */
-export const encryption = (data: crypto.BinaryLike): string => {
-  return crypto.createHmac('sha1', process.env.CRYPTO_SECRET).update(data).digest('hex');
+export const encryption = (data: crypto.BinaryLike, salt: string = ''): string => {
+  return crypto
+    .createHmac('sha1', process.env.CRYPTO_SECRET + salt)
+    .update(data)
+    .digest('hex');
 };
 
 /**
- * 计算字符串哈希，使用sha1算法
+ * 计算字符串哈希 使用sha1算法(不可逆加密)
  * @param data string
  * @returns {string} 返回哈希值
  */
 export const cryptoHASH = (data: string) => {
-  const hash = crypto.createHash('sha1');
-  return hash.update(data).digest('hex');
+  return crypto.createHash('sha1').update(data).digest('hex');
 };
 
 const CRYPTO_KEY = crypto.scryptSync(process.env.CRYPTO_KEY, 'GfG', 32);

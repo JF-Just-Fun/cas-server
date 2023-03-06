@@ -18,7 +18,7 @@
    用户访问 service 时，service 发现用户没有 ST，则要求用户去 CAS 获取 ST。
    用户向 CAS 发出获取 ST 的请求，CAS 发现用户有 TGT，则签发一个 ST，返回给用户。
    用户拿着 ST 去访问 service，service 拿 ST 去 CAS 验证，验证通过后，允许用户访问资源。
-   存在 redis 中，形式为 `ST:{TGT}: {ST LIST}`
+   存在 redis 中，形式为 `ST:{ST}: {TGT}`
 
 ## 步骤
 

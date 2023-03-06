@@ -3,7 +3,7 @@ import createError from 'http-errors';
 import { has } from 'lodash';
 import { dataSource, redis } from '../database';
 import { LoginLog, User, Application } from '../models';
-import { encryption, valid, getuuid, validate, success, fail, getST, cipher, decipher, cryptoHASH } from '../util';
+import { encryption, valid, getuuid, validate, success, fail, cipher, decipher, cryptoHASH } from '../util';
 import enums from '../enums';
 
 /**
@@ -89,7 +89,7 @@ export const login = async (req: any, res: Response, next: NextFunction): Promis
     return;
   }
 
-  // todo: code to login and register
+  // todo: SMS code to login and register
   const repository = dataSource.getRepository(User);
   const user = await repository.findOne({ where: [{ email, password: encryption(password) }] });
 
@@ -127,7 +127,7 @@ export const login = async (req: any, res: Response, next: NextFunction): Promis
 
   res.cookie('CAS_TGC', TGC, { maxAge: 365 * 24 * 60 * 60 * 1000, httpOnly: true });
 
-  redis.setex(`TGT:${TGC}`, 365 * 24 * 60 * 60, TGT);
+  redis.setex(`TGC:${TGC}`, 2 * 24 * 60 * 60, TGT);
 
   // cas client admin
   if (!fromUrl) {
@@ -136,7 +136,9 @@ export const login = async (req: any, res: Response, next: NextFunction): Promis
   }
 
   // 生成ST
-  const ST = await getST();
+  const salt = Math.random().toString(36).substring(2);
+  const ST = encryption(TGT, salt);
+  redis.setex(`ST:${ST}`, 1 * 24 * 60 * 60, TGT);
 
   res.redirect(301, `${fromUrl}?ST=${ST}`);
   return;
@@ -149,51 +151,35 @@ export const login = async (req: any, res: Response, next: NextFunction): Promis
  * @method POST
  */
 export const checkST = async (req: any, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { fromUrl, ST, token, code, result } = validate(
+  const { applicationToken, ST, code, result } = validate(
     {
-      fromUrl: { type: 'string', required: true, validation: valid.isUrl },
-      ST: { type: 'string', required: false },
+      applicationToken: { type: 'string', required: true },
+      ST: { type: 'string', required: true },
     },
     req.body,
   );
-
   // 参数校验
   if (code) {
-    fail(res, 22, `参数校验错误`, result);
+    fail(res, 22, '参数校验错误', result);
     return;
   }
+
   const repository = dataSource.getRepository(Application);
-  const appInfo = await repository.findOne({ where: [{ domain: fromUrl }] });
+  const appInfo = await repository.findOne({ where: [{ token: applicationToken }] });
   if (!appInfo) {
-    fail(res, 30, `认证失败,域名未授权`, {});
+    fail(res, 401, `认证失败，应用未授权`);
     return;
   }
 
-  // 查询ip是否在白名单内
-  const ip = '114.114.114.114' || req.ipInfo.ip;
-  if (!appInfo.ip.split(',').includes(ip)) {
-    fail(res, 31, `认证失败,ip未授权`, {});
+  const TGT = await redis.get(`ST:${ST}`);
+  if (!TGT) {
+    fail(res, 401, `ST认证失败，请重新登录！`);
     return;
   }
-  const userInfo = {
-    ST: null,
-  };
-  if (!userInfo) {
-    fail(res, 32, `认证失败,未登录cas`, {});
-    return;
-  }
-  if (!userInfo[`${fromUrl}_ST`] || !ST || ST !== userInfo.ST) {
-    // 生成ST
-    const ST = await getST();
-    userInfo[`${fromUrl}_ST`] = ST;
-    console.log(ST);
+  const profile = decipher(TGT);
 
-    fail(res, 32, `认证失败,没有对应的ST，ST已重置，请用新的ST请求`, { ST });
-    return;
-  }
   // 提示认证成功
-  userInfo[`${fromUrl}_ST`] = null;
-  success(res);
+  success(res, 'ST验证成功！', profile);
   return;
 };
 

@@ -12,3 +12,5 @@ docker
 
 # vscode setting
 .vscode
+
+.DS_Store

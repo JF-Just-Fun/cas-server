@@ -1,10 +1,13 @@
 import express, { Express, Request, Response, NextFunction, Router, RequestHandler } from 'express';
 import USER from './user';
 import Application from './application';
+import { Index } from '../controller';
 
+// index path: / method: GET
 const router = express.Router();
+router.get('/', Index);
 
-// /* routes */
+/* routes */
 type routeList = {
   [key: string]: Array<Router | RequestHandler>;
 };

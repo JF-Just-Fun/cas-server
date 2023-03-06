@@ -1,4 +1,4 @@
-import { dataSource, redis } from '../database';
+import { redis } from '../database';
 import { v4 } from 'uuid';
 import { Response } from 'express';
 
@@ -16,27 +16,8 @@ export const getToken = async () => {
   return str;
 };
 
-/**
- * 生成登录ST
- * @returns string
- */
-export const getST = async () => {
-  let tokenList = await redis.lrange(`cas:ST`, 0, -1);
-  let str = Math.random().toString(36).substring(2);
-  while (tokenList.includes(str)) {
-    str = Math.random().toString(36).substring(2);
-  }
-  redis.lpush(`cas:ST`, str);
-  return str;
-};
-
 // 生成uuid
-export const getuuid = () => {
-  let strUUID = v4();
-  // 去掉-字符，使用空格代替
-  let strUUID2 = strUUID.replace(/-/g, '');
-  return strUUID2;
-};
+export const getuuid = () => v4().replace(/-/g, '');
 
 type validationRulesType = {
   [key: string]: {
@@ -112,6 +93,7 @@ export const validate = (rules: validationRulesType, data: validationDataType): 
   return { code: -1, result: ['参数校验规则错误'], ...data };
 };
 
+// request success
 export const success = (res: Response, message: string = 'success', data = {}) => {
   res.status(200).json({
     code: 0,
@@ -121,6 +103,7 @@ export const success = (res: Response, message: string = 'success', data = {}) =
   return;
 };
 
+// request fail
 export const fail = (res: Response, code: number, message: string, data = {}) => {
   res.status(200).json({
     code,
