@@ -1,4 +1,4 @@
-const enums = {
+export const enums = {
   returnCode: {
     记录不存在: 21,
     失败: -1,
@@ -9,4 +9,4 @@ const enums = {
   },
 };
 
-export default enums;
+export * as expires from './expires';

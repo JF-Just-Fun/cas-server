@@ -14,4 +14,6 @@ router.post('/cas_login', UserController.checkST);
 
 router.get('/profile', UserController.profile);
 
+router.delete('/logout', UserController.logout);
+
 export default router;

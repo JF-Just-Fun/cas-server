@@ -4,7 +4,7 @@ import { has } from 'lodash';
 import { dataSource, redis } from '../database';
 import { LoginLog, User, Application } from '../models';
 import { encryption, valid, getuuid, validate, success, fail, cipher, decipher, cryptoHASH } from '../util';
-import enums from '../enums';
+import { enums, expires } from '../enums';
 
 /**
  * index
@@ -73,7 +73,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
  * @param req.body.password string
  * @method POST
  */
-export const login = async (req: any, res: Response, next: NextFunction): Promise<RequestHandler> => {
+export const login = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { email, password, fromUrl, code, result } = validate(
     {
       email: { type: 'string', required: true },
@@ -127,7 +127,8 @@ export const login = async (req: any, res: Response, next: NextFunction): Promis
 
   res.cookie('CAS_TGC', TGC, { maxAge: 365 * 24 * 60 * 60 * 1000, httpOnly: true });
 
-  redis.setex(`TGC:${TGC}`, 2 * 24 * 60 * 60, TGT);
+  redis.setex(`TGC:${TGC}`, expires.TGC_EXPIRE, TGT);
+  redis.lpush(`USER_TICKET:${userInfo.account_id}`, `TGC:${TGC}`);
 
   // cas client admin
   if (!fromUrl) {
@@ -138,7 +139,8 @@ export const login = async (req: any, res: Response, next: NextFunction): Promis
   // 生成ST
   const salt = Math.random().toString(36).substring(2);
   const ST = encryption(TGT, salt);
-  redis.setex(`ST:${ST}`, 1 * 24 * 60 * 60, TGT);
+  redis.setex(`ST:${ST}`, expires.ST_EXPIRE, TGT);
+  redis.lpush(`USER_TICKET:${userInfo.account_id}`, `ST:${ST}`);
 
   res.redirect(301, `${fromUrl}?ST=${ST}`);
   return;
@@ -150,7 +152,7 @@ export const login = async (req: any, res: Response, next: NextFunction): Promis
  * @param req.body.password string
  * @method POST
  */
-export const checkST = async (req: any, res: Response, next: NextFunction): Promise<RequestHandler> => {
+export const checkST = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { applicationToken, ST, code, result } = validate(
     {
       applicationToken: { type: 'string', required: true },
@@ -167,16 +169,17 @@ export const checkST = async (req: any, res: Response, next: NextFunction): Prom
   const repository = dataSource.getRepository(Application);
   const appInfo = await repository.findOne({ where: [{ token: applicationToken }] });
   if (!appInfo) {
-    fail(res, 401, `认证失败，应用未授权`);
+    fail(res, 401, '认证失败，应用未授权');
     return;
   }
 
   const TGT = await redis.get(`ST:${ST}`);
   if (!TGT) {
-    fail(res, 401, `ST认证失败，请重新登录！`);
+    fail(res, 401, 'ST认证失败，请重新登录！');
     return;
   }
   const profile = decipher(TGT);
+  redis.del(`ST:${ST}`);
 
   // 提示认证成功
   success(res, 'ST验证成功！', profile);
@@ -187,7 +190,7 @@ export const checkST = async (req: any, res: Response, next: NextFunction): Prom
  * 获取用户简介，验证用户是否登录
  * @method GET
  */
-export const profile = async (req: any, res: Response, next: NextFunction): Promise<RequestHandler> => {
+export const profile = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { CAS_TGC } = req.cookies;
 
   if (!CAS_TGC) {
@@ -195,7 +198,7 @@ export const profile = async (req: any, res: Response, next: NextFunction): Prom
     return;
   }
 
-  const TGT = await redis.get(`TGC:${CAS_TGC}`);
+  const TGT = await redis.getex(`TGC:${CAS_TGC}`, 'EX', expires.TGC_EXPIRE);
 
   if (!TGT) {
     fail(res, 401, 'cookie无效，请重新登录！');
@@ -205,5 +208,36 @@ export const profile = async (req: any, res: Response, next: NextFunction): Prom
   const profile = decipher(TGT);
 
   success(res, 'success', profile);
+  return;
+};
+
+/**
+ * 用户登出CAS
+ * @method DELETE
+ */
+export const logout = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
+  const { CAS_TGC } = req.cookies;
+
+  if (!CAS_TGC) {
+    fail(res, 200, '用户并未登陆，无需登出！');
+    return;
+  }
+
+  const TGT = await redis.getex(`TGC:${CAS_TGC}`, 'EX', expires.TGC_EXPIRE);
+
+  if (!TGT) {
+    fail(res, 200, 'cookie无效！');
+    return;
+  }
+  const profile = decipher(TGT);
+  const ticketList = await redis.lrange(`USER_TICKET:${profile.account_id}`, 0, -1);
+
+  for (let i = 0; i < ticketList.length; i++) {
+    const ticket = ticketList[i];
+    redis.del(ticket);
+  }
+  redis.del(`USER_TICKET:${profile.account_id}`);
+
+  success(res, 'success', `用户<${profile.name}>登出成功！`);
   return;
 };
