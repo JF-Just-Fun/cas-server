@@ -4,7 +4,7 @@ import { has } from 'lodash';
 import { dataSource, redis } from '../database';
 import { LoginLog, User, Application } from '../models';
 import { encryption, valid, getuuid, validate, success, fail, cipher, decipher, cryptoHASH } from '../util';
-import { enums, expires } from '../enums';
+import { resCode, expires } from '../enums';
 
 /**
  * index
@@ -37,7 +37,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
   );
   // 参数校验
   if (code) {
-    fail(res, 22, `参数校验错误`, result);
+    fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
     return;
   }
   const repository = dataSource.getRepository(User);
@@ -50,7 +50,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     if (user.email === email) message.push(`邮箱:${email}已存在`);
     if (user.phone === phone) message.push(`手机号:${phone}已存在`);
 
-    fail(res, 100, message.join(';'));
+    fail(res, { code: resCode.DISABLED, data: message.join(';') });
     return;
   }
 
@@ -63,7 +63,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     account_id: getuuid(),
   });
 
-  success(res, `${name} register success`);
+  success(res, { message: `${name} register success` });
   return;
 };
 
@@ -85,7 +85,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
   // 参数校验
   if (code) {
-    fail(res, 22, `参数校验错误`, result);
+    fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
     return;
   }
 
@@ -94,19 +94,19 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
   const user = await repository.findOne({ where: [{ email, password: encryption(password) }] });
 
   if (!user) {
-    fail(res, 21, '用户不存在', {});
+    fail(res, { code: resCode.MISTAKE, message: '用户不存在' });
     return;
   }
 
   // 密码校验
   if (encryption(password) !== user.password) {
-    fail(res, enums.returnCode.密码错误, '密码错误', {});
+    fail(res, { code: resCode.MISTAKE, message: '密码错误' });
     return;
   }
 
   // 用户状态校验
   if (!user.active) {
-    fail(res, 23, '该用户已禁用', {});
+    fail(res, { code: resCode.DISABLED, message: '该用户已禁用' });
     return;
   }
 
@@ -132,7 +132,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
   // cas client admin
   if (!fromUrl) {
-    success(res, '成功', userInfo);
+    success(res, { data: userInfo });
     return;
   }
 
@@ -162,71 +162,73 @@ export const checkST = async (req: Request, res: Response, next: NextFunction): 
   );
   // 参数校验
   if (code) {
-    fail(res, 22, '参数校验错误', result);
+    fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
     return;
   }
 
   const repository = dataSource.getRepository(Application);
   const appInfo = await repository.findOne({ where: [{ token: applicationToken }] });
   if (!appInfo) {
-    fail(res, 401, '认证失败，应用未授权');
+    fail(res, { code: resCode.REFUSE, message: '认证失败，应用未授权' });
     return;
   }
 
   const TGT = await redis.get(`ST:${ST}`);
   if (!TGT) {
-    fail(res, 401, 'ST认证失败，请重新登录！');
+    fail(res, { code: resCode.REFUSE, message: 'ST认证失败，请重新登录！' });
     return;
   }
   const profile = decipher(TGT);
   redis.del(`ST:${ST}`);
 
   // 提示认证成功
-  success(res, 'ST验证成功！', profile);
+  success(res, { message: 'ST验证成功！', data: profile });
   return;
 };
 
 /**
  * 获取用户简介，验证用户是否登录
+ * 如果用户存在TGT，则刷新过期TGT时间
  * @method GET
  */
 export const profile = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { CAS_TGC } = req.cookies;
 
   if (!CAS_TGC) {
-    fail(res, 401, 'cookie为空，请先登录！');
+    fail(res, { code: resCode.REFUSE, message: 'cookie为空，请先登录！' });
     return;
   }
 
   const TGT = await redis.getex(`TGC:${CAS_TGC}`, 'EX', expires.TGC_EXPIRE);
 
   if (!TGT) {
-    fail(res, 401, 'cookie无效，请重新登录！');
+    fail(res, { code: resCode.REFUSE, message: 'cookie无效，请重新登录！' });
     return;
   }
 
   const profile = decipher(TGT);
 
-  success(res, 'success', profile);
+  success(res, { data: profile });
   return;
 };
 
 /**
  * 用户登出CAS
+ * 销毁当前用户相关的ST TGT
  * @method DELETE
  */
 export const logout = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { CAS_TGC } = req.cookies;
 
   if (!CAS_TGC) {
-    fail(res, 200, '用户并未登陆，无需登出！');
+    fail(res, { code: resCode.REFUSE, message: '用户并未登陆，无需登出！' });
     return;
   }
 
   const TGT = await redis.getex(`TGC:${CAS_TGC}`, 'EX', expires.TGC_EXPIRE);
 
   if (!TGT) {
-    fail(res, 200, 'cookie无效！');
+    fail(res, { code: resCode.REFUSE, data: 'cookie无效！' });
     return;
   }
   const profile = decipher(TGT);
@@ -238,6 +240,6 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
   }
   redis.del(`USER_TICKET:${profile.account_id}`);
 
-  success(res, 'success', `用户<${profile.name}>登出成功！`);
+  success(res, { message: `用户<${profile.name}>登出成功！` });
   return;
 };

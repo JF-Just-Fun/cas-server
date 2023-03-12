@@ -1,16 +1,16 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import createError from 'http-errors';
-import { has } from 'lodash';
 import { dataSource, redis } from '../database';
+import { resCode } from '../enums';
 import { LoginLog, User, Application } from '../models';
 import { encryption, valid, getToken, getuuid, validate, success, fail } from '../util';
 
 /**
  * index
- * @returns '/user'
+ * @returns '/application'
  */
 export const index = (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  res.send('/user');
+  res.send('/application');
   return;
 };
 
@@ -34,7 +34,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
   );
   // 参数校验
   if (code) {
-    fail(res, 22, `参数校验错误`, result);
+    fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
     return;
   }
   // 获取项目唯一标识token
@@ -45,7 +45,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
 
   // user repeated
   if (appInfo) {
-    fail(res, 28, `${domain}_${ip} exited!`, {});
+    fail(res, { code: resCode.EXISTED, message: `${domain}_${ip} exited!` });
     return;
   }
 
@@ -54,11 +54,11 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     ip,
     domain,
     desc,
-    active: true,
+    unId: getuuid(),
     token,
   });
 
-  success(res, '成功', {});
+  success(res);
   return;
 };
 
@@ -82,7 +82,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
   );
   // 参数校验
   if (code) {
-    fail(res, 22, `参数校验错误`, result);
+    fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
     return;
   }
   const { id } = req.params;
@@ -92,7 +92,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
 
   // user repeated
   if (!appInfo) {
-    fail(res, 100, `${ip} not exited!`, {});
+    fail(res, { code: resCode.NOT_EXIST, message: `${ip} not exited!` });
     return;
   }
   await repository.update(
@@ -105,7 +105,40 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
     },
   );
 
-  success(res, `${name} update success`, {});
+  success(res, { message: `${name} update success` });
+  return;
+};
+
+/**
+ * 删除项目
+ * @param req.body.id string
+ * @method POST
+ */
+export const remove = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
+  const { id, code, result } = validate(
+    {
+      id: { type: 'string', required: true },
+    },
+    req.params,
+  );
+  // 参数校验
+  if (code) {
+    fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
+    return;
+  }
+
+  const repository = dataSource.getRepository(Application);
+  const appInfo = await repository.findOneBy({ unId: id });
+
+  // user repeated
+  if (!appInfo) {
+    fail(res, { code: resCode.NOT_EXIST, message: `${appInfo.name} not registered!` });
+    return;
+  }
+
+  repository.remove(appInfo);
+
+  success(res, { message: `${appInfo.name} has been removed!` });
   return;
 };
 
@@ -129,7 +162,7 @@ export const list = async (req: Request, res: Response, next: NextFunction): Pro
   );
   // 参数校验
   if (code) {
-    fail(res, 22, `参数校验错误`, result);
+    fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
     return;
   }
 
@@ -139,12 +172,15 @@ export const list = async (req: Request, res: Response, next: NextFunction): Pro
 
   // user repeated
   if (!appList) {
-    fail(res, 28, `查询失败`, {});
+    fail(res, { code: resCode.EXISTED, message: `查询失败` });
     return;
   }
-  success(res, '成功', {
-    rows: appList[0] || [],
-    count: appList[1] || 0,
+  success(res, {
+    message: '成功',
+    data: {
+      rows: appList[0] || [],
+      count: appList[1] || 0,
+    },
   });
   return;
 };

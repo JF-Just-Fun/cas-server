@@ -1,6 +1,7 @@
 import { redis } from '../database';
 import { v4 } from 'uuid';
 import { Response } from 'express';
+import { resCode } from '../enums';
 
 /**
  * 生成唯一token
@@ -93,22 +94,25 @@ export const validate = (rules: validationRulesType, data: validationDataType): 
   return { code: -1, result: ['参数校验规则错误'], ...data };
 };
 
+type ResponseData = {
+  code?: number;
+  message?: string;
+  data?: any;
+};
 // request success
-export const success = (res: Response, message: string = 'success', data = {}) => {
+export const success = (res: Response, data: ResponseData = {}) => {
   res.status(200).json({
-    code: 0,
-    message,
-    data,
+    code: resCode.SUCCESS,
+    message: '请求成功！',
+    ...data,
   });
-  return;
 };
 
 // request fail
-export const fail = (res: Response, code: number, message: string, data = {}) => {
+export const fail = (res: Response, data: ResponseData = {}) => {
   res.status(200).json({
-    code,
-    message,
-    data,
+    code: resCode.FAIL,
+    message: '请求失败！',
+    ...data,
   });
-  return;
 };
