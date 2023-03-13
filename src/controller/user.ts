@@ -147,7 +147,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 };
 
 /**
- * 检查是否有登录cas
+ * 校验ST凭证
  * @param req.body.name string
  * @param req.body.password string
  * @method POST

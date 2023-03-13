@@ -1,24 +1,22 @@
-import { redis } from '../database';
-import { v4 } from 'uuid';
-import { Response } from 'express';
+import { v4, v5 } from 'uuid';
+import type { Response } from 'express';
 import { resCode } from '../enums';
 
-/**
- * 生成唯一token
- * @returns string
- */
-export const getToken = async () => {
-  let tokenList = await redis.lrange(`cas:token`, 0, -1);
-  let str = Math.random().toString(36).substring(2);
-  while (tokenList.includes(str)) {
-    str = Math.random().toString(36).substring(2);
-  }
-  await redis.lpush(`cas:token`, str);
-  return str;
-};
+// 生成id
+export const getuuid = (): string => v4();
 
-// 生成uuid
-export const getuuid = () => v4().replace(/-/g, '');
+/**
+ * 基于namespace生成unId
+ */
+export const getUnId = (): string => v5(process.env.UNIQUE_ID_NAMESPACE);
+
+/**
+ * 随机字符
+ * @param {number} number
+ */
+export const randomStr = (n: number = 16): string => {
+  return Array.from({ length: n }, () => Math.random().toString(36).slice(-1)).join('');
+};
 
 type validationRulesType = {
   [key: string]: {

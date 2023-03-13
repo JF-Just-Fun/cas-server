@@ -15,7 +15,7 @@ export class Application {
   id: number;
 
   // 应用名称
-  @Column('varchar', { nullable: true })
+  @Column('varchar', { nullable: true, unique: true })
   name: string;
 
   // 描述
@@ -31,15 +31,15 @@ export class Application {
   domain: string;
 
   // 应用token
-  @Column('varchar', { nullable: true })
+  @Column('varchar', { nullable: true, unique: true })
   token: string;
 
-  // 应用unique id
+  // 应用id
   @Column('varchar', { nullable: false, unique: true })
   unId: string;
 
   // 是否启用
-  @Column('boolean', { nullable: true })
+  @Column('boolean', { nullable: true, default: true })
   active: boolean;
 
   // 有效期限

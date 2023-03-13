@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import createError from 'http-errors';
 import { dataSource, redis } from '../database';
-import { resCode } from '../enums';
+import { expires, resCode } from '../enums';
 import { LoginLog, User, Application } from '../models';
-import { encryption, valid, getToken, getuuid, validate, success, fail } from '../util';
+import { encryption, valid, getuuid, validate, success, fail, getUnId, randomStr, decipher } from '../util';
 
 /**
  * index
@@ -37,46 +37,51 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
     return;
   }
-  // 获取项目唯一标识token
-  const token = await getToken();
 
   const repository = dataSource.getRepository(Application);
-  const appInfo = await repository.findOne({ where: [{ ip }, { domain }] });
+  const appInfo = await repository.findOne({ where: [{ name }] });
 
   // user repeated
   if (appInfo) {
-    fail(res, { code: resCode.EXISTED, message: `${domain}_${ip} exited!` });
+    fail(res, { code: resCode.EXISTED, message: `${name}: ${ip} exited!` });
     return;
   }
 
-  await repository.insert({
+  const token = getuuid();
+  const unId = randomStr();
+
+  repository.insert({
     name,
     ip,
     domain,
     desc,
-    unId: getuuid(),
+    unId,
     token,
   });
 
-  success(res);
+  success(res, { message: `${name} 注册成功！`, data: { token } });
   return;
 };
 
 /**
  * 编辑项目
- * @param req.body.name string
+ * @param req.body.unId string
  * @param req.body.ip string
  * @param req.body.domain string
+ * @param req.body.name string
  * @param req.body.desc string
- * @method POST
+ * @param req.body.expire string
+ * @method PUT
  */
 export const update = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { name, ip, active, desc, code, result } = validate(
+  const { name, ip, unId, domain, desc, expire, code, result } = validate(
     {
-      name: { type: 'string', required: true },
-      ip: { type: 'string', required: true },
-      active: { type: 'number', required: true },
+      unId: { type: 'string', required: true },
+      name: { type: 'string', required: false },
+      ip: { type: 'string', required: false },
+      domain: { type: 'string', required: false },
       desc: { type: 'string', required: false },
+      expire: { type: 'string', required: false },
     },
     req.body,
   );
@@ -85,41 +90,41 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
     fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
     return;
   }
-  const { id } = req.params;
 
   const repository = dataSource.getRepository(Application);
-  const appInfo = await repository.findOneBy({ id: +id });
+  const appInfo = await repository.findOneBy({ unId });
 
-  // user repeated
   if (!appInfo) {
     fail(res, { code: resCode.NOT_EXIST, message: `${ip} not exited!` });
     return;
   }
+
   await repository.update(
-    { id: +id },
+    { unId },
     {
       name,
       ip,
       desc,
-      active,
+      domain,
+      expire,
     },
   );
 
-  success(res, { message: `${name} update success` });
+  success(res, { message: `${name} updated` });
   return;
 };
 
 /**
  * 删除项目
  * @param req.body.id string
- * @method POST
+ * @method DELETE
  */
 export const remove = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { id, code, result } = validate(
+  const { unId, code, result } = validate(
     {
-      id: { type: 'string', required: true },
+      unId: { type: 'string', required: true },
     },
-    req.params,
+    req.query,
   );
   // 参数校验
   if (code) {
@@ -128,7 +133,7 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
   }
 
   const repository = dataSource.getRepository(Application);
-  const appInfo = await repository.findOneBy({ unId: id });
+  const appInfo = await repository.findOneBy({ unId });
 
   // user repeated
   if (!appInfo) {
@@ -148,15 +153,17 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
  * @param req.query.page string
  * @param req.query.size string
  * @param req.query.ip string
- * @method POST
+ * @method GET
  */
 export const list = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { page, size, domain, ip, code, result } = validate(
+  const { page, size, token, name, unId, ip, code, result } = validate(
     {
-      page: { type: 'number', required: true },
-      size: { type: 'number', required: true },
-      domain: { type: 'string', required: false },
+      page: { type: 'number', required: true, default: 1 },
+      size: { type: 'number', required: true, default: 20 },
+      token: { type: 'string', required: false },
+      name: { type: 'string', required: false },
       ip: { type: 'string', required: false },
+      unId: { type: 'string', required: false },
     },
     req.query,
   );
@@ -167,12 +174,15 @@ export const list = async (req: Request, res: Response, next: NextFunction): Pro
   }
 
   const repository = dataSource.getRepository(Application);
-  const appList = await repository.findAndCount({ take: size, skip: (page - 1) * size });
+  const appList = await repository.findAndCount({
+    take: size,
+    skip: (page - 1) * size,
+    where: [{ token }, { name }, { unId }, { ip }],
+  });
   console.log(appList);
 
-  // user repeated
   if (!appList) {
-    fail(res, { code: resCode.EXISTED, message: `查询失败` });
+    fail(res, { code: resCode.NOT_EXIST, message: `数据不存在` });
     return;
   }
   success(res, {
@@ -180,6 +190,48 @@ export const list = async (req: Request, res: Response, next: NextFunction): Pro
     data: {
       rows: appList[0] || [],
       count: appList[1] || 0,
+    },
+  });
+  return;
+};
+
+/**
+ * 项目详情
+ * @param req.query.unId string
+ * @method GET
+ */
+export const query = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
+  const { unId, code, result } = validate(
+    {
+      unId: { type: 'string', required: true },
+    },
+    req.query,
+  );
+  // 参数校验
+  if (code) {
+    fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
+    return;
+  }
+
+  const repository = dataSource.getRepository(Application);
+  const appInfo = await repository.findOne({ where: { unId } });
+
+  // user repeated
+  if (!appInfo) {
+    fail(res, { code: resCode.NOT_EXIST, message: `数据不存在` });
+    return;
+  }
+
+  success(res, {
+    message: '成功',
+    data: {
+      unId: appInfo.unId,
+      name: appInfo.name,
+      desc: appInfo.desc,
+      ip: appInfo.ip,
+      domain: appInfo.domain,
+      token: appInfo.token,
+      expire: appInfo.expire,
     },
   });
   return;
