@@ -4,6 +4,9 @@ FROM node:16
 # create a directory to run docker
 WORKDIR /app
 
+# custom cache invalidation
+ARG CACHEBUST=1
+
 # copy all other files into the app directory
 COPY . /app
 
