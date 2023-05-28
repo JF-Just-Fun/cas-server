@@ -40,4 +40,4 @@ jobs:
           user: ${{ secrets.SERVER_USER }} # Remote server user - required
           private_key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }} # Private ssh key registered on the remote server - required
           # Command to be executed - Default: echo 'hello world' - optional
-          command: cd /project/nginx/projects/_api && docker-compose stop && docker-compose up -d --build
+          command: cd /project/nginx/projects/_api && docker-compose stop && docker-compose up -d --build --remove-orphans
