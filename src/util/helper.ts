@@ -1,14 +1,16 @@
-import { v4, v5 } from 'uuid';
 import type { Response } from 'express';
 import { resCode } from '../enums';
 
-// 生成id
-export const getuuid = (): string => v4();
-
 /**
- * 基于namespace生成unId
+ * 生成unId
  */
-export const getUnId = (): string => v5(process.env.UNIQUE_ID_NAMESPACE);
+export const getUnId = (length: number = 8): string => {
+  if (length < 8) length = 8;
+
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+  return Array.from({ length }, () => characters.charAt(Math.floor(Math.random() * characters.length))).join('');
+};
 
 /**
  * 随机字符
@@ -39,7 +41,7 @@ export const validate = (rules: validationRulesType, data: validationDataType): 
   let result: string[] = [];
   if (rules instanceof Object) {
     if (!data) {
-      result.push(`参数校验错误，无参数`);
+      result.push(`无参数`);
       return { code: -1, result, ...data };
     }
 
@@ -47,8 +49,8 @@ export const validate = (rules: validationRulesType, data: validationDataType): 
       const value = rules[item];
 
       // from
-      if (value.hasOwnProperty('from')) {
-        data[item] = value.from[item];
+      if (value.hasOwnProperty('from') && typeof value.from === 'object') {
+        data[item] = data[item] || value.from[item];
       }
 
       // default
@@ -59,25 +61,31 @@ export const validate = (rules: validationRulesType, data: validationDataType): 
       // required
       if (data[item] === undefined) {
         if (!value.required) continue;
-        result.push(`参数校验错误，缺少参数${item}`);
+        result.push(`缺少参数${item}`);
+        continue;
       }
 
       // type
-      if (value['type'] === 'number') {
-        data[item] = parseInt(data[item]);
+      let skipType = false;
+      switch (value['type']) {
+        case 'number':
+          data[item] = parseInt(data[item]);
+          break;
+        case 'timestamp':
+          data[item] = new Date(parseInt(data[item]));
+          skipType = !isNaN(Date.prototype.getTime.call(data[item]));
+          break;
+        default:
       }
-      if (value['type'] === 'file') {
-        continue;
-      }
-      if (typeof data[item] !== value['type']) {
-        result.push(`参数校验错误，参数${item}必须是${value['type']}`);
+      if (!skipType && typeof data[item] !== value['type']) {
+        result.push(`参数${item}必须是${value['type']}`);
       }
 
       //validation
       if (value['validation']) {
         const validation = value['validation'];
         if (!validation(data[item])) {
-          result.push(`参数校验错误，参数${item}格式不正确`);
+          result.push(`参数${item}格式不正确`);
         }
       }
     }

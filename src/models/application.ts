@@ -8,6 +8,7 @@ import {
   ManyToOne,
   Timestamp,
 } from 'typeorm';
+import Common from './common';
 
 @Entity()
 export class Application {
@@ -15,7 +16,7 @@ export class Application {
   id: number;
 
   // 应用名称
-  @Column('varchar', { nullable: true, unique: true })
+  @Column('varchar', { nullable: true })
   name: string;
 
   // 描述
@@ -38,31 +39,12 @@ export class Application {
   @Column('varchar', { nullable: false, unique: true })
   unId: string;
 
-  // 是否启用
-  @Column('boolean', { nullable: true, default: true })
-  active: boolean;
-
   // 有效期限
-  @Column('date', { nullable: true })
+  @Column('datetime', { nullable: true })
   expire: Date;
 
-  @CreateDateColumn({
-    name: 'create_time',
-    nullable: true,
-  })
-  createTime: Date;
-
-  @UpdateDateColumn({
-    name: 'update_time',
-    nullable: true,
-  })
-  updateTime: Date | null;
-
-  @DeleteDateColumn({
-    name: 'delete_at',
-    nullable: true,
-  })
-  deleteAt: Date | null;
+  @Column(() => Common)
+  common: Common;
 }
 
 export default Application;

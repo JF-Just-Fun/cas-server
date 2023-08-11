@@ -1,14 +1,6 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  DeleteDateColumn,
-  OneToMany,
-  ManyToMany,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import LoginLog from './loginLog';
+import Common from './common';
 
 @Entity()
 export class User {
@@ -35,9 +27,9 @@ export class User {
   @Column('date', { nullable: true })
   birth: string;
 
-  //账号id（UUID）
-  @Column('varchar', { unique: true, length: 200 })
-  account_id: string;
+  //账号id
+  @Column('varchar', { unique: true, length: 20 })
+  unId: string;
 
   // 电话
   @Column('varchar', { nullable: true, unique: true, length: 20 })
@@ -55,24 +47,8 @@ export class User {
   @OneToMany(() => LoginLog, (loginLog) => loginLog.user)
   LoginLog: LoginLog[];
 
-  // 是否启用
-  @Column('boolean', { default: true })
-  active: boolean;
-
-  @CreateDateColumn({
-    name: 'create_time',
-  })
-  createTime: Date;
-
-  @UpdateDateColumn({
-    name: 'update_time',
-  })
-  updateTime: Date;
-
-  @DeleteDateColumn({
-    name: 'delete_at',
-  })
-  deleteTime: Date;
+  @Column(() => Common)
+  common: Common;
 }
 
 export default User;

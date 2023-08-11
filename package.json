@@ -8,7 +8,9 @@
   "scripts": {
     "prepare": "husky install",
     "start": "cross-env NODE_ENV=development nodemon -w ./src -e ts,js,json --exec ts-node ./bin/www",
-    "start:production": "cross-env NODE_ENV=production nodemon ./bin/www"
+    "start:production": "cross-env NODE_ENV=production nodemon ./bin/www",
+    "docker-compose:dev": "docker-compose -d -f docker-compose.yml up",
+    "docker-compose:prod": "docker-compose -d -f docker-compose.prod.yml up"
   },
   "dependencies": {
     "@alicloud/dysmsapi20170525": "^2.0.23",
@@ -24,8 +26,7 @@
     "mysql2": "^2.3.3",
     "pg": "^8.10.0",
     "reflect-metadata": "^0.1.13",
-    "typeorm": "^0.3.12",
-    "uuid": "^9.0.0"
+    "typeorm": "^0.3.12"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.4.4",

@@ -3,7 +3,7 @@ import createError from 'http-errors';
 import { dataSource, redis } from '../database';
 import { expires, resCode } from '../enums';
 import { LoginLog, User, Application } from '../models';
-import { encryption, valid, getuuid, validate, success, fail, getUnId, randomStr, decipher } from '../util';
+import { encryption, valid, validate, success, fail, getUnId, randomStr, decipher } from '../util';
 
 /**
  * index
@@ -27,7 +27,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     {
       name: { type: 'string', required: true },
       ip: { type: 'string', required: true },
-      domain: { type: 'string', required: true },
+      domain: { type: 'string', required: true, validation: valid.isUrl },
       desc: { type: 'string', required: false },
     },
     req.body,
@@ -39,15 +39,15 @@ export const register = async (req: Request, res: Response, next: NextFunction):
   }
 
   const repository = dataSource.getRepository(Application);
-  const appInfo = await repository.findOne({ where: [{ name }] });
+  const appInfo = await repository.findOne({ where: [{ ip, domain }] });
 
   // user repeated
   if (appInfo) {
-    fail(res, { code: resCode.EXISTED, message: `${name}: ${ip} exited!` });
+    fail(res, { code: resCode.EXISTED, message: `${domain}: ${ip} existed !` });
     return;
   }
 
-  const token = getuuid();
+  const token = getUnId(12);
   const unId = randomStr();
 
   repository.insert({
@@ -59,7 +59,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     token,
   });
 
-  success(res, { message: `${name} 注册成功！`, data: { token } });
+  success(res, { message: `${name}:${domain}: ${ip} registered successful !`, data: { token } });
   return;
 };
 
@@ -81,7 +81,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
       ip: { type: 'string', required: false },
       domain: { type: 'string', required: false },
       desc: { type: 'string', required: false },
-      expire: { type: 'string', required: false },
+      expire: { type: 'timestamp', required: false },
     },
     req.body,
   );
@@ -95,7 +95,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
   const appInfo = await repository.findOneBy({ unId });
 
   if (!appInfo) {
-    fail(res, { code: resCode.NOT_EXIST, message: `${ip} not exited!` });
+    fail(res, { code: resCode.NOT_EXIST, message: `${unId} not existed!` });
     return;
   }
 
@@ -110,7 +110,9 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
     },
   );
 
-  success(res, { message: `${name} updated` });
+  delete appInfo.common;
+
+  success(res, { message: `${unId} updated`, data: appInfo });
   return;
 };
 
@@ -137,7 +139,7 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
 
   // user repeated
   if (!appInfo) {
-    fail(res, { code: resCode.NOT_EXIST, message: `${appInfo.name} not registered!` });
+    fail(res, { code: resCode.NOT_EXIST, message: `${unId} not registered!` });
     return;
   }
 
@@ -158,8 +160,8 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
 export const list = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { page, size, token, name, unId, ip, code, result } = validate(
     {
-      page: { type: 'number', required: true, default: 1 },
-      size: { type: 'number', required: true, default: 20 },
+      page: { type: 'number', default: 1 },
+      size: { type: 'number', default: 20 },
       token: { type: 'string', required: false },
       name: { type: 'string', required: false },
       ip: { type: 'string', required: false },
@@ -173,18 +175,31 @@ export const list = async (req: Request, res: Response, next: NextFunction): Pro
     return;
   }
 
+  const params = { token, name, unId, ip };
+  const where = Object.keys(params).reduce((acc, key) => {
+    const value = params[key];
+    if (value !== undefined) {
+      acc.push({ [key]: value });
+    }
+    return acc;
+  }, []);
+
   const repository = dataSource.getRepository(Application);
   const appList = await repository.findAndCount({
     take: size,
     skip: (page - 1) * size,
-    where: [{ token }, { name }, { unId }, { ip }],
+    where,
   });
-  console.log(appList);
 
   if (!appList) {
     fail(res, { code: resCode.NOT_EXIST, message: `数据不存在` });
     return;
   }
+
+  appList[0].forEach((item) => {
+    if (item.common) delete item.common;
+  });
+
   success(res, {
     message: '成功',
     data: {
@@ -217,21 +232,17 @@ export const query = async (req: Request, res: Response, next: NextFunction): Pr
   const appInfo = await repository.findOne({ where: { unId } });
 
   // user repeated
-  if (!appInfo) {
+  if (!appInfo || !appInfo.common.isActive) {
     fail(res, { code: resCode.NOT_EXIST, message: `数据不存在` });
     return;
   }
 
+  delete appInfo.common;
+
   success(res, {
     message: '成功',
     data: {
-      unId: appInfo.unId,
-      name: appInfo.name,
-      desc: appInfo.desc,
-      ip: appInfo.ip,
-      domain: appInfo.domain,
-      token: appInfo.token,
-      expire: appInfo.expire,
+      ...appInfo,
     },
   });
   return;

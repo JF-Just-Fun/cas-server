@@ -1,4 +1,4 @@
-import express, { Express, Request, Response, NextFunction, Router, RequestHandler } from 'express';
+import express, { Express, Router, RequestHandler } from 'express';
 import USER from './user';
 import Application from './application';
 import { Index } from '../controller';

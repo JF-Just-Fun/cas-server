@@ -41,3 +41,16 @@
     注意，这里的 ST 和第 4 步中的 ST 是不一样的，事实上，每次生成的 ST 都是不一样的。
 11. 浏览器带 ST 重定向到 b 服务器，和第 5 步一样。
 12. b 服务器根据票据向 SSO 服务器发送请求，票据验证通过后，b 服务器知道用户已经在 sso 登录了，于是生成 b session，向浏览器写入 b cookie。
+
+## 接口
+
+1. user
+   登录 login
+   注册 register
+   登出 logout
+   校验 ST checkST
+   用户信息 profile
+
+2. application
+
+###
