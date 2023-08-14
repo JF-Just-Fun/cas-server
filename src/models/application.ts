@@ -16,7 +16,7 @@ export class Application {
   id: number;
 
   // 应用名称
-  @Column('varchar', { nullable: true })
+  @Column('varchar', { unique: true })
   name: string;
 
   // 描述
@@ -24,20 +24,16 @@ export class Application {
   desc: string;
 
   // IP地址
-  @Column('varchar', { nullable: true })
+  @Column('varchar')
   ip: string;
 
   // 域名
-  @Column('varchar', { nullable: true })
+  @Column('varchar', { unique: true })
   domain: string;
 
   // 应用token
-  @Column('varchar', { nullable: true, unique: true })
+  @Column('varchar', { unique: true })
   token: string;
-
-  // 应用id
-  @Column('varchar', { nullable: false, unique: true })
-  unId: string;
 
   // 有效期限
   @Column('datetime', { nullable: true })

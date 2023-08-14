@@ -30,7 +30,7 @@ export async function isManager(req: Request, res: Response, next: NextFunction)
 }
 
 /**
- * 校验用户身份
+ * 校验用户身份，只验证TGT是否存在
  */
 export async function isUser(req: Request, res: Response, next: NextFunction): Promise<RequestHandler> {
   // 用户身份验证
@@ -50,14 +50,6 @@ export async function isUser(req: Request, res: Response, next: NextFunction): P
   if (!profile) {
     res.clearCookie('CAS_TGC');
     fail(res, { data: resCode.REFUSE, message: '用户不存在！' });
-    return;
-  }
-
-  const repository = dataSource.getRepository(User);
-  const user = await repository.findOne({ where: { ...profile } });
-  if (!user) {
-    res.clearCookie('CAS_TGC');
-    fail(res, { code: resCode.REFUSE, message: '用户不存在！' });
     return;
   }
 

@@ -12,8 +12,10 @@ router.post('/login', UserController.login);
 
 router.post('/st', authentication.isUser, UserController.checkST);
 
-router.get('/profile', UserController.profile);
+router.get('/getst', authentication.isUser, UserController.getST);
 
-router.delete('/logout', UserController.logout);
+router.get('/profile', authentication.isUser, UserController.profile);
+
+router.delete('/logout', authentication.isUser, UserController.logout);
 
 export default router;

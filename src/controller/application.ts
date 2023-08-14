@@ -3,7 +3,7 @@ import createError from 'http-errors';
 import { dataSource, redis } from '../database';
 import { expires, resCode } from '../enums';
 import { LoginLog, User, Application } from '../models';
-import { encryption, valid, validate, success, fail, getUnId, randomStr, decipher } from '../util';
+import { encryption, valid, validate, success, fail, decipher, getUniCode } from '../util';
 
 /**
  * index
@@ -47,15 +47,13 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  const token = getUnId(12);
-  const unId = randomStr();
+  const token = getUniCode(12);
 
   repository.insert({
     name,
     ip,
     domain,
     desc,
-    unId,
     token,
   });
 
@@ -65,7 +63,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
 
 /**
  * 编辑项目
- * @param req.body.unId string
+ * @param req.body.token string
  * @param req.body.ip string
  * @param req.body.domain string
  * @param req.body.name string
@@ -74,9 +72,9 @@ export const register = async (req: Request, res: Response, next: NextFunction):
  * @method PUT
  */
 export const update = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { name, ip, unId, domain, desc, expire, code, result } = validate(
+  const { name, ip, token, domain, desc, expire, code, result } = validate(
     {
-      unId: { type: 'string', required: true },
+      token: { type: 'string', required: true },
       name: { type: 'string', required: false },
       ip: { type: 'string', required: false },
       domain: { type: 'string', required: false },
@@ -92,15 +90,15 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
   }
 
   const repository = dataSource.getRepository(Application);
-  const appInfo = await repository.findOneBy({ unId });
+  const appInfo = await repository.findOneBy({ token });
 
   if (!appInfo) {
-    fail(res, { code: resCode.NOT_EXIST, message: `${unId} not existed!` });
+    fail(res, { code: resCode.NOT_EXIST, message: `token: ${token} not existed!` });
     return;
   }
 
   await repository.update(
-    { unId },
+    { token },
     {
       name,
       ip,
@@ -112,7 +110,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
 
   delete appInfo.common;
 
-  success(res, { message: `${unId} updated`, data: appInfo });
+  success(res, { message: `token: ${token} updated`, data: appInfo });
   return;
 };
 
@@ -122,9 +120,9 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
  * @method DELETE
  */
 export const remove = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { unId, code, result } = validate(
+  const { token, code, result } = validate(
     {
-      unId: { type: 'string', required: true },
+      token: { type: 'string', required: true },
     },
     req.query,
   );
@@ -135,11 +133,11 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
   }
 
   const repository = dataSource.getRepository(Application);
-  const appInfo = await repository.findOneBy({ unId });
+  const appInfo = await repository.findOneBy({ token });
 
   // user repeated
   if (!appInfo) {
-    fail(res, { code: resCode.NOT_EXIST, message: `${unId} not registered!` });
+    fail(res, { code: resCode.NOT_EXIST, message: `token: ${token} not registered!` });
     return;
   }
 
@@ -158,14 +156,13 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
  * @method GET
  */
 export const list = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { page, size, token, name, unId, ip, code, result } = validate(
+  const { page, size, token, name, ip, code, result } = validate(
     {
       page: { type: 'number', default: 1 },
       size: { type: 'number', default: 20 },
       token: { type: 'string', required: false },
       name: { type: 'string', required: false },
       ip: { type: 'string', required: false },
-      unId: { type: 'string', required: false },
     },
     req.query,
   );
@@ -175,7 +172,7 @@ export const list = async (req: Request, res: Response, next: NextFunction): Pro
     return;
   }
 
-  const params = { token, name, unId, ip };
+  const params = { token, name, ip };
   const where = Object.keys(params).reduce((acc, key) => {
     const value = params[key];
     if (value !== undefined) {
@@ -212,13 +209,13 @@ export const list = async (req: Request, res: Response, next: NextFunction): Pro
 
 /**
  * 项目详情
- * @param req.query.unId string
+ * @param req.query.token string
  * @method GET
  */
 export const query = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { unId, code, result } = validate(
+  const { token, code, result } = validate(
     {
-      unId: { type: 'string', required: true },
+      token: { type: 'string', required: true },
     },
     req.query,
   );
@@ -229,7 +226,7 @@ export const query = async (req: Request, res: Response, next: NextFunction): Pr
   }
 
   const repository = dataSource.getRepository(Application);
-  const appInfo = await repository.findOne({ where: { unId } });
+  const appInfo = await repository.findOne({ where: { token } });
 
   // user repeated
   if (!appInfo || !appInfo.common.isActive) {

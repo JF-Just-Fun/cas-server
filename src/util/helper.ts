@@ -2,22 +2,24 @@ import type { Response } from 'express';
 import { resCode } from '../enums';
 
 /**
- * 生成unId
- */
-export const getUnId = (length: number = 8): string => {
-  if (length < 8) length = 8;
-
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-
-  return Array.from({ length }, () => characters.charAt(Math.floor(Math.random() * characters.length))).join('');
-};
-
-/**
  * 随机字符
- * @param {number} number
+ * @param {number} number default 16
+ * @param {string} prefix
+ * @param {string} suffix
  */
-export const randomStr = (n: number = 16): string => {
-  return Array.from({ length: n }, () => Math.random().toString(36).slice(-1)).join('');
+export const getUniCode = (length: number = 16, prefix: string = '', suffix: string = ''): string => {
+  if (length < 6) length = 6;
+
+  const upperOrLower = [String.prototype.toLowerCase, String.prototype.toUpperCase];
+
+  return (
+    prefix +
+    Array.from({ length }, () => {
+      const m = Math.random();
+      return upperOrLower[Math.floor(m * upperOrLower.length)].call(m.toString(36).slice(-1));
+    }).join('') +
+    suffix
+  );
 };
 
 type validationRulesType = {
@@ -33,7 +35,6 @@ type validationDataType = {
   [key: string]: any;
 };
 type validationType = {
-  code: number;
   result?: string[];
 } & validationDataType;
 
@@ -42,7 +43,7 @@ export const validate = (rules: validationRulesType, data: validationDataType): 
   if (rules instanceof Object) {
     if (!data) {
       result.push(`无参数`);
-      return { code: -1, result, ...data };
+      return { result, ...data };
     }
 
     for (const item in rules) {
@@ -90,14 +91,10 @@ export const validate = (rules: validationRulesType, data: validationDataType): 
       }
     }
 
-    if (result.length === 0) {
-      return { code: 0, ...data };
-    }
-
-    return { code: -1, result, ...data };
+    return { result, ...data };
   }
 
-  return { code: -1, result: ['参数校验规则错误'], ...data };
+  return { result: ['参数校验规则错误'], ...data };
 };
 
 type ResponseData = {

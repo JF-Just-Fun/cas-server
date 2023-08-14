@@ -4,7 +4,7 @@
 
 ## 票据
 
-1. TGT：Ticket Grangting Ticket
+1. TGT：Ticket Granting Ticket
    TGT 是 CAS 为用户签发的登录票据，拥有了 TGT，用户就可以证明自己在 CAS 成功登录过，根据用户信息签发的。
    TGT 封装了 Cookie 值对应的用户信息。
    当 HTTP 请求到来时，CAS 以此 Cookie 值（TGC）为 key 查询缓存中有无 TGT ，如果有的话，则相信用户已登录过。

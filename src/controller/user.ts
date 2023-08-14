@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import createError from 'http-errors';
 import { dataSource, redis } from '../database';
 import { LoginLog, User, Application } from '../models';
-import { encryption, valid, validate, success, fail, cipher, decipher, cryptoHASH, getUnId } from '../util';
+import { encryption, valid, validate, success, fail, cipher, decipher, getUniCode } from '../util';
 import { resCode, expires } from '../enums';
 
 // todo 根据指定的unId查询用户信息，限定管理员可操作
@@ -26,7 +26,7 @@ export const index = (req: Request, res: Response, next: NextFunction): Promise<
  * @method POST
  */
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { name, password, email, phone, avatar, code, result } = validate(
+  const { name, password, email, phone, avatar, result } = validate(
     {
       name: { type: 'string', required: true },
       password: { type: 'string', required: true },
@@ -37,7 +37,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     req.body,
   );
   // 参数校验
-  if (code) {
+  if (result.length) {
     fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
     return;
   }
@@ -61,7 +61,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     email,
     phone,
     avatar,
-    unId: getUnId(),
+    unId: getUniCode(),
   });
 
   success(res, { message: `${name} register success` });
@@ -75,20 +75,23 @@ export const register = async (req: Request, res: Response, next: NextFunction):
  * @method POST
  */
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { email, password, fromUrl, code, result } = validate(
+  const { email, password, result } = validate(
     {
       email: { type: 'string', required: true },
       password: { type: 'string', required: true },
-      fromUrl: { type: 'string', from: req.query, validation: valid.isUrl },
     },
     req.body,
   );
 
   // 参数校验
-  if (code) {
+  if (result.length) {
     fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
     return;
   }
+
+  // 清除之前的TGT
+  const { CAS_TGC } = req.cookies;
+  redis.del(`TGC:${CAS_TGC}`);
 
   // todo: SMS code to login and register
   const repository = dataSource.getRepository(User);
@@ -117,31 +120,21 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     unId: user.unId,
     avatar: user.avatar,
     manager: user.manager,
+    ip: req.ip,
+    time: Date.now(),
   };
 
   // 生成TGT
   const TGT = cipher(userInfo);
 
   // 生成TGC
-  const TGC = cryptoHASH(TGT);
+  const TGC = getUniCode();
 
-  res.cookie('CAS_TGC', TGC, { maxAge: 365 * 24 * 60 * 60 * 1000, httpOnly: true });
+  res.cookie('CAS_TGC', TGC, { maxAge: expires.TGC_EXPIRE * 1000, httpOnly: true });
 
   redis.setex(`TGC:${TGC}`, expires.TGC_EXPIRE, TGT);
 
-  // cas client admin
-  if (!fromUrl) {
-    success(res, { data: userInfo });
-    return;
-  }
-
-  // 生成ST
-  const salt = Math.random().toString(36).substring(2);
-  const ST = encryption(TGT, salt);
-  redis.setex(`ST:${ST}`, expires.ST_EXPIRE, TGT);
-  console.log('=> redirect url: ', `${fromUrl}?ST=${ST}`);
-
-  res.redirect(301, `${fromUrl}?ST=${ST}`);
+  success(res, { data: userInfo });
   return;
 };
 
@@ -152,11 +145,6 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
  */
 export const profile = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { CAS_TGC } = req.cookies;
-
-  if (!CAS_TGC) {
-    fail(res, { code: resCode.REFUSE, message: 'cookie为空，请先登录！' });
-    return;
-  }
 
   const TGT = await redis.getex(`TGC:${CAS_TGC}`, 'EX', expires.TGC_EXPIRE);
 
@@ -179,40 +167,30 @@ export const profile = async (req: Request, res: Response, next: NextFunction): 
 export const logout = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { CAS_TGC } = req.cookies;
 
-  if (!CAS_TGC) {
-    fail(res, { code: resCode.REFUSE, message: '用户并未登陆，无需登出！' });
-    return;
-  }
-
   res.clearCookie('CAS_TGC');
 
   const TGT = await redis.getex(`TGC:${CAS_TGC}`, 'EX', expires.TGC_EXPIRE);
 
   if (!TGT) {
-    fail(res, { code: resCode.REFUSE, data: 'cookie无效！' });
+    success(res, { code: resCode.REFUSE, data: 'cookie无效！' });
     return;
   }
   const profile = decipher(TGT);
-  const ticketList = await redis.lrange(`USER_TICKET:${profile.unId}`, 0, -1);
 
-  for (let i = 0; i < ticketList.length; i++) {
-    const ticket = ticketList[i];
-    redis.del(ticket);
-  }
-  redis.del(`USER_TICKET:${profile.unId}`);
+  redis.del(`TGC:${CAS_TGC}`);
 
   success(res, { message: `用户<${profile.name}>登出成功！` });
   return;
 };
 
 /**
- * 校验ST凭证
+ * 校验ST凭证，ST的生成与用户和app相关，如果校验对不上则失效
  * @param req.body.name string
  * @param req.body.password string
  * @method POST
  */
 export const checkST = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { token, ST, code, domain, ip, result } = validate(
+  const { token, ST, domain, ip, result } = validate(
     {
       token: { type: 'string', required: true },
       ST: { type: 'string', required: true },
@@ -222,7 +200,7 @@ export const checkST = async (req: Request, res: Response, next: NextFunction): 
     req.body,
   );
   // 参数校验
-  if (code) {
+  if (result.length) {
     fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
     return;
   }
@@ -237,14 +215,71 @@ export const checkST = async (req: Request, res: Response, next: NextFunction): 
     return;
   }
 
-  const targetTGT = await redis.get(`ST:${ST}`);
-  if (!targetTGT || targetTGT !== currentTGT) {
+  const { TGT: targetTGT, token: targetToken } = await redis.hgetall(`ST:${ST}`);
+  redis.del(`ST:${ST}`);
+
+  const targetApp = await repository.findOne({ where: { token: targetToken } });
+
+  if (!targetApp) {
+    fail(res, { code: resCode.REFUSE, message: `目标应用${targetApp.domain}未注册！` });
+    return;
+  }
+
+  if (!targetTGT || targetTGT !== currentTGT || targetApp.token !== token) {
     fail(res, { code: resCode.REFUSE, message: 'ST认证失败，请重新授权！' });
     return;
   }
-  redis.del(`ST:${ST}`);
 
   // 提示认证成功
   success(res, { message: 'ST验证成功！' });
+  return;
+};
+
+/**
+ * 授予 ST
+ * @param {url} domain req.query.domain
+ * @method POST
+ */
+export const getST = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
+  const { CAS_TGC } = req.cookies;
+  const { domain, result } = validate(
+    {
+      domain: { type: 'string', required: true, validation: valid.isUrl },
+    },
+    req.query,
+  );
+
+  // 参数校验
+  if (result.length) {
+    fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
+    return;
+  }
+
+  const TGT = await redis.getex(`TGC:${CAS_TGC}`, 'EX', expires.TGC_EXPIRE);
+  if (!TGT) {
+    fail(res, { code: resCode.REFUSE, message: '登录校验失败，请先登录！' });
+    return;
+  }
+
+  const repository = dataSource.getRepository(Application);
+  const appInfo = await repository.findOne({ where: { domain } });
+
+  if (!appInfo) {
+    fail(res, { code: resCode.REFUSE, message: `应用${domain}未注册！` });
+    return;
+  }
+
+  const STData = {
+    TGT,
+    token: appInfo.token,
+  };
+
+  // 生成ST
+  const ST = getUniCode(12);
+  redis.hset(`ST:${ST}`, STData);
+  redis.expire(`ST:${ST}`, expires.ST_EXPIRE);
+  console.log('=> redirect url: ', `${domain}?ST=${ST}`);
+
+  res.redirect(301, `${domain}?ST=${ST}`);
   return;
 };
