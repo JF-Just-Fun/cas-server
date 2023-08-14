@@ -3,7 +3,7 @@ import createError from 'http-errors';
 import { dataSource, redis } from '../database';
 import { expires, resCode } from '../enums';
 import { LoginLog, User, Application } from '../models';
-import { encryption, valid, validate, success, fail, decipher, getUniCode } from '../util';
+import { encryption, valid, validate, success, fail, getUniCode } from '../util';
 
 /**
  * index
@@ -17,33 +17,31 @@ export const index = (req: Request, res: Response, next: NextFunction): Promise<
 /**
  * 新增项目
  * @param req.body.name string
- * @param req.body.ip string
  * @param req.body.domain string
  * @param req.body.desc string
  * @method POST
  */
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { name, ip, domain, desc, code, result } = validate(
+  const { name, domain, desc, result } = validate(
     {
       name: { type: 'string', required: true },
-      ip: { type: 'string', required: true },
       domain: { type: 'string', required: true, validation: valid.isUrl },
       desc: { type: 'string', required: false },
     },
     req.body,
   );
   // 参数校验
-  if (code) {
+  if (result.length) {
     fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
     return;
   }
 
   const repository = dataSource.getRepository(Application);
-  const appInfo = await repository.findOne({ where: [{ ip, domain }] });
+  const appInfo = await repository.findOne({ where: [{ domain }] });
 
   // user repeated
   if (appInfo) {
-    fail(res, { code: resCode.EXISTED, message: `${domain}: ${ip} existed !` });
+    fail(res, { code: resCode.EXISTED, message: `${domain} existed !` });
     return;
   }
 
@@ -51,20 +49,18 @@ export const register = async (req: Request, res: Response, next: NextFunction):
 
   repository.insert({
     name,
-    ip,
     domain,
     desc,
     token,
   });
 
-  success(res, { message: `${name}:${domain}: ${ip} registered successful !`, data: { token } });
+  success(res, { message: `${name}:${domain} registered successful !`, data: { token } });
   return;
 };
 
 /**
  * 编辑项目
  * @param req.body.token string
- * @param req.body.ip string
  * @param req.body.domain string
  * @param req.body.name string
  * @param req.body.desc string
@@ -72,11 +68,10 @@ export const register = async (req: Request, res: Response, next: NextFunction):
  * @method PUT
  */
 export const update = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { name, ip, token, domain, desc, expire, code, result } = validate(
+  const { name, token, domain, desc, expire, result } = validate(
     {
       token: { type: 'string', required: true },
       name: { type: 'string', required: false },
-      ip: { type: 'string', required: false },
       domain: { type: 'string', required: false },
       desc: { type: 'string', required: false },
       expire: { type: 'timestamp', required: false },
@@ -84,7 +79,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
     req.body,
   );
   // 参数校验
-  if (code) {
+  if (result.length) {
     fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
     return;
   }
@@ -101,7 +96,6 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
     { token },
     {
       name,
-      ip,
       desc,
       domain,
       expire,
@@ -120,14 +114,14 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
  * @method DELETE
  */
 export const remove = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { token, code, result } = validate(
+  const { token, result } = validate(
     {
       token: { type: 'string', required: true },
     },
     req.query,
   );
   // 参数校验
-  if (code) {
+  if (result.length) {
     fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
     return;
   }
@@ -152,27 +146,26 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
  * @param req.query.domain string
  * @param req.query.page string
  * @param req.query.size string
- * @param req.query.ip string
  * @method GET
  */
 export const list = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { page, size, token, name, ip, code, result } = validate(
+  const { page, size, token, domain, name, result } = validate(
     {
       page: { type: 'number', default: 1 },
       size: { type: 'number', default: 20 },
       token: { type: 'string', required: false },
       name: { type: 'string', required: false },
-      ip: { type: 'string', required: false },
+      domain: { type: 'string', required: false },
     },
     req.query,
   );
   // 参数校验
-  if (code) {
+  if (result.length) {
     fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
     return;
   }
 
-  const params = { token, name, ip };
+  const params = { token, name, domain };
   const where = Object.keys(params).reduce((acc, key) => {
     const value = params[key];
     if (value !== undefined) {

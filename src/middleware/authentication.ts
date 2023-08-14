@@ -1,8 +1,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
-import { redis, dataSource } from '../database';
+import { redis } from '../database';
 import { expires, resCode } from '../enums';
 import { decipher, fail } from '../util';
-import { User } from '../models';
 
 /**
  * 根据cookie校验manager身份

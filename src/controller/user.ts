@@ -120,7 +120,6 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     unId: user.unId,
     avatar: user.avatar,
     manager: user.manager,
-    ip: req.ip,
     time: Date.now(),
   };
 
@@ -190,12 +189,11 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
  * @method POST
  */
 export const checkST = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { token, ST, domain, ip, result } = validate(
+  const { token, ST, domain, result } = validate(
     {
       token: { type: 'string', required: true },
       ST: { type: 'string', required: true },
       domain: { type: 'string', required: true, validation: valid.isUrl },
-      ip: { type: 'string', required: true },
     },
     req.body,
   );
@@ -209,7 +207,7 @@ export const checkST = async (req: Request, res: Response, next: NextFunction): 
   const currentTGT = await redis.getex(`TGC:${CAS_TGC}`, 'EX', expires.TGC_EXPIRE);
 
   const repository = dataSource.getRepository(Application);
-  const appInfo = await repository.findOne({ where: [{ token, domain, ip }] });
+  const appInfo = await repository.findOne({ where: [{ token, domain }] });
   if (!appInfo) {
     fail(res, { code: resCode.REFUSE, message: '认证失败，应用未授权' });
     return;
@@ -230,8 +228,10 @@ export const checkST = async (req: Request, res: Response, next: NextFunction): 
     return;
   }
 
+  const userInfo = decipher(currentTGT);
+
   // 提示认证成功
-  success(res, { message: 'ST验证成功！' });
+  success(res, { message: 'ST验证成功！', data: userInfo });
   return;
 };
 

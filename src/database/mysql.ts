@@ -10,7 +10,7 @@ const options: DataSourceOptions = {
   password: process.env.MYSQL_ROOT_PASSWORD, // 'DUANcas4815883',
   database: process.env.MYSQL_DATABASE, // 'cas',
   // /* Indicates if database schema should be auto created on every application launch. */
-  // synchronize: true,
+  synchronize: true,
   logging: false,
   entities: Object.values(Model),
 };

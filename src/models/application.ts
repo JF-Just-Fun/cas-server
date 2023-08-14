@@ -1,13 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-  DeleteDateColumn,
-  Column,
-  CreateDateColumn,
-  ManyToOne,
-  Timestamp,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 import Common from './common';
 
 @Entity()
@@ -22,10 +13,6 @@ export class Application {
   // 描述
   @Column('varchar', { nullable: true })
   desc: string;
-
-  // IP地址
-  @Column('varchar')
-  ip: string;
 
   // 域名
   @Column('varchar', { unique: true })

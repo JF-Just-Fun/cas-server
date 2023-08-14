@@ -11,14 +11,14 @@
 
 2. TGC：Ticket Granting Cookie
    CAS Server 生成 TGT 放入自己的 Session 中，而 TGC 就是这个 Session 的唯一标识（SessionId），以 Cookie 形式放到浏览器端，是 CAS Server 用来明确用户身份的凭证。
-   存在 redis 中，形式为 `TGC:{TGC}: {TGT}`
+   存在 redis 中，形式为 `TGC:${TGC} => ${TGT}`
 
 3. ST：Service Ticket
    ST 是 CAS 为用户签发的访问某一 service 的票据。
    用户访问 service 时，service 发现用户没有 ST，则要求用户去 CAS 获取 ST。
    用户向 CAS 发出获取 ST 的请求，CAS 发现用户有 TGT，则签发一个 ST，返回给用户。
    用户拿着 ST 去访问 service，service 拿 ST 去 CAS 验证，验证通过后，允许用户访问资源。
-   存在 redis 中，形式为 `ST:{ST}: {TGT}`
+   存在 redis 中，形式为 `ST:${ST} => { TGT, token }`
 
 在 CAS（Central Authentication Service）系统中，存在几种不同类型的票据，用于支持单点登录和安全身份验证。
 
