@@ -26,10 +26,12 @@ services:
         '--',
         './wait-for-it.sh',
         'db_redis:${REDIS_PORT}',
+        '-t',
+        '5',
         '--',
         'npm',
         'run',
-        'start',
+        'start:production',
       ]
 
   db_mysql:

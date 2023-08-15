@@ -56,7 +56,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           port: ${{ secrets.SERVER_SSH_PORT }}
           key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
-          source: './.env,./docker-compose.prod.yml'
+          source: './.env,./docker-compose.prod.yml,./wait-for-it.sh'
           target: ${{ secrets.SERVER_DOCKER_PATH }}
 
       - name: executing remote ssh commands using ssh key
@@ -69,7 +69,7 @@ jobs:
           script: |
             cd ${{ secrets.SERVER_DOCKER_PATH }}
             echo "CAS_IMAGE=${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_REPOSITORY }}:${{ secrets.DOCKER_IMAGE_TAG }}" >> .env
-            docker compose -f ./docker-compose.prod.yml up --force-recreate --pull -d
+            docker compose -f ./docker-compose.prod.yml up --remove-orphans --force-recreate --pull -d
 
   cas-client-mw:
     runs-on: ubuntu-latest
@@ -87,21 +87,19 @@ jobs:
           node-version: 16.x
           registry-url: https://registry.npmjs.org/
 
-      - name: Enter package
-        working-directory: ./packages/cas-client-mw
-        run: pwd
-
       - name: Install deps
         run: |
+          cd ./packages/cas-client-mw
           npm ci
-          pwd
 
       - name: Build Package
         run: |
+          cd ./packages/cas-client-mw
           npm run build
-          pwd
 
       - name: Publish package
-        run: npm publish
+        run: |
+          cd ./packages/cas-client-mw
+          npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
