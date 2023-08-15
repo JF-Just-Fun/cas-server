@@ -120,7 +120,9 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     unId: user.unId,
     avatar: user.avatar,
     manager: user.manager,
-    time: Date.now(),
+    phone: user.phone,
+    birth: user.birth,
+    gender: user.gender,
   };
 
   // 生成TGT

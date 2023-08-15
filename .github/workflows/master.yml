@@ -20,18 +20,19 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
-      - name: Deploy to Server
+      - name: Deploy project to server
         uses: easingthemes/ssh-deploy@main
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }} # The keys should be generated using the PEM format.eg: ssh-keygen -m PEM -t rsa -b 4096
+          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
           ARGS: '--delete'
           SOURCE: ./
           REMOTE_HOST: ${{ secrets.SERVER_HOST }}
           REMOTE_USER: ${{ secrets.SERVER_USER }}
-          TARGET: ${{ secrets.SERVER_PROJECT_TARGET }}
-          EXCLUDE: '/dist, /node_modules, /build, /docker'
+          TARGET: ${{ secrets.SERVER_ROOT }}/_api
+          EXCLUDE: '/dist, /node_modules, /build, /docker, /packages'
 
       - name: run docker compose
         uses: D3rHase/ssh-command-action@main
@@ -40,4 +41,30 @@ jobs:
           user: ${{ secrets.SERVER_USER }} # Remote server user - required
           private_key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }} # Private ssh key registered on the remote server - required
           # Command to be executed - Default: echo 'hello world' - optional
-          command: cd /project/nginx/projects/_api && docker-compose stop && docker-compose up -d --build --remove-orphans
+          command: cd ${{ secrets.SERVER_ROOT }}/_api && npm run docker-compose:prod
+
+  cas-client-mw:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set node version to 16.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build Package
+        run: npm run build
+
+      - name: Publish package
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
