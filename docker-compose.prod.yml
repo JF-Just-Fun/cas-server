@@ -3,7 +3,7 @@ version: '3.7'
 services:
   app:
     build: .
-    image: cas_express
+    image: ${CAS_IMAGE}
     container_name: cas_express
     restart: always
     ports:

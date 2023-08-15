@@ -29,25 +29,46 @@ jobs:
           node-version: 16.x
           registry-url: https://registry.npmjs.org/
 
-      - name: Deploy project to server
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
-          ARGS: '--delete'
-          SOURCE: ./
-          REMOTE_HOST: ${{ secrets.SERVER_HOST }}
-          REMOTE_USER: ${{ secrets.SERVER_USER }}
-          TARGET: ${{ secrets.SERVER_ROOT }}/_api
-          EXCLUDE: '/dist, /node_modules, /build, /docker, /packages'
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
 
-      - name: run docker compose
-        uses: D3rHase/ssh-command-action@main
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
         with:
-          host: ${{ secrets.SERVER_HOST }} # Remote server address / ip - required
-          user: ${{ secrets.SERVER_USER }} # Remote server user - required
-          private_key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }} # Private ssh key registered on the remote server - required
-          # Command to be executed - Default: echo 'hello world' - optional
-          command: cd ${{ secrets.SERVER_ROOT }}/_api && npm run docker-compose:prod
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+
+      - name: Build and push CAS-API service
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          file: ./Dockerfile
+          tags: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_REPOSITORY }}:${{ secrets.DOCKER_IMAGE_TAG }}
+
+      - name: copy file via ssh key
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          port: ${{ secrets.SERVER_SSH_PORT }}
+          key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+          source: './.env,./docker-compose.prod.yml'
+          target: ${{ secrets.SERVER_DOCKER_PATH }}
+
+      - name: executing remote ssh commands using ssh key
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT }}
+          script: |
+            cd ${{ secrets.SERVER_DOCKER_PATH }}
+            docker compose -f ./docker-compose.prod.yml up -d --force-recreate --pull -e CAS_IMAGE=${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_REPOSITORY }}:${{ secrets.DOCKER_IMAGE_TAG }}
 
   cas-client-mw:
     runs-on: ubuntu-latest
@@ -65,7 +86,7 @@ jobs:
           registry-url: https://registry.npmjs.org/
 
       - name: Enter package
-        run: cd ./pacakges/cas-client-mw
+        run: cd ./packages/cas-client-mw
 
       - name: Install deps
         run: npm ci
