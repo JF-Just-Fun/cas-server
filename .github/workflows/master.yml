@@ -23,6 +23,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Set node version to 16.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x
+          registry-url: https://registry.npmjs.org/
+
       - name: Deploy project to server
         uses: easingthemes/ssh-deploy@main
         env:
@@ -57,6 +63,9 @@ jobs:
         with:
           node-version: 16.x
           registry-url: https://registry.npmjs.org/
+
+      - name: Enter package
+        run: cd ./pacakges/cas-client-mw
 
       - name: Install deps
         run: npm ci
