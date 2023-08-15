@@ -14,5 +14,8 @@ COPY . /app
 RUN cd /app \
     && npm ci --legacy-peer-deps
 
+# Give execution rights on the wait-for-it.sh script
+RUN chmod +x /app/wait-for-it.sh
+
 # open port 5000
 EXPOSE 5000

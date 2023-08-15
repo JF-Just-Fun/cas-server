@@ -69,6 +69,8 @@ jobs:
           script: |
             cd ${{ secrets.SERVER_DOCKER_PATH }}
             echo "CAS_IMAGE=${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_REPOSITORY }}:${{ secrets.DOCKER_IMAGE_TAG }}" >> .env
+            docker compose  -f ./docker-compose.prod.yml down
+            docker rmi ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_REPOSITORY }}:${{ secrets.DOCKER_IMAGE_TAG }}
             docker compose -f ./docker-compose.prod.yml up --remove-orphans --force-recreate --pull -d
 
   cas-client-mw:
@@ -90,7 +92,7 @@ jobs:
       - name: Install deps
         run: |
           cd ./packages/cas-client-mw
-          npm ci
+          npm ci --legacy-peer-deps
 
       - name: Build Package
         run: |

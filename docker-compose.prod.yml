@@ -2,7 +2,6 @@ version: '3.7'
 
 services:
   app:
-    build: .
     image: ${CAS_IMAGE}
     container_name: cas_express
     restart: always
@@ -12,27 +11,17 @@ services:
       - db_mysql
       - db_redis
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       MYSQL_HOST: db_mysql
       REDIS_HOST: db_redis
       MYSQL_PORT: 3306
       REDIS_PORT: 6379
-    command:
-      [
-        './wait-for-it.sh',
-        'db_mysql:${MYSQL_PORT}',
-        '-t',
-        '5',
-        '--',
-        './wait-for-it.sh',
-        'db_redis:${REDIS_PORT}',
-        '-t',
-        '5',
-        '--',
-        'npm',
-        'run',
-        'start:production',
-      ]
+    command: >-
+      bash -c "
+      /app/wait-for-it.sh db_mysql:${MYSQL_PORT} -t 5 --
+      /app/wait-for-it.sh db_redis:${REDIS_PORT} -t 5 --
+      npm run start:production
+      "
 
   db_mysql:
     image: mysql:8.0.31
