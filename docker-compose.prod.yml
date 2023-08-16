@@ -18,8 +18,8 @@ services:
       REDIS_PORT: 6379
     command: >-
       bash -c "
-      /app/wait-for-it.sh db_mysql:${MYSQL_PORT} -t 5 --
-      /app/wait-for-it.sh db_redis:${REDIS_PORT} -t 5 --
+      /app/wait-for-it.sh db_mysql:${MYSQL_PORT} -t 10 --
+      /app/wait-for-it.sh db_redis:${REDIS_PORT} -t 10 --
       npm run start:production
       "
 
