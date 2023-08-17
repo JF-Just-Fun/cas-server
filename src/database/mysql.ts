@@ -10,7 +10,7 @@ const options: DataSourceOptions = {
   password: process.env.MYSQL_ROOT_PASSWORD, // 'DUANcas4815883',
   database: process.env.MYSQL_DATABASE, // 'cas',
   // /* Indicates if database schema should be auto created on every application launch. */
-  synchronize: true,
+  synchronize: process.env.NODE_ENV === 'production' ? false : true,
   logging: false,
   entities: Object.values(Model),
 };
@@ -18,7 +18,13 @@ const options: DataSourceOptions = {
 const dataSource = new DataSource(options);
 dataSource.initialize().then(
   (dataSource) => console.log('=> database connected!'),
-  (error) => console.log('Cannot connect: ', error),
+  (error) => {
+    // code = 'ER_BAD_DB_ERROR' 无数据库
+    // code = 'ER_ACCESS_DENIED_ERROR' 密码错误
+    Object.keys(error).forEach((key) => {
+      console.log('=> ', key, error[key]);
+    });
+  },
 );
 
 export default dataSource;

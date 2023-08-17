@@ -16,5 +16,6 @@ export default {
       format: 'esm',
     },
   ],
-  plugins: [json(), resolve(), commonjs(), typescript(), terser()],
+  plugins: [json(), typescript(), resolve(), commonjs()], // , terser()
+  external: ['express', 'express-session', 'axios', '@types/express-session', '@types/express', '@types/axios'],
 };

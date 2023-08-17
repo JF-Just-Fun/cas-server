@@ -7,3 +7,4 @@ export const Index = (req: Request, res: Response, next: NextFunction): Promise<
 
 export * as UserController from './user';
 export * as ApplicationController from './application';
+export * as Ticket from './ticket';

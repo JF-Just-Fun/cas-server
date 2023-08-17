@@ -7,43 +7,20 @@ services:
     restart: always
     ports:
       - ${APP_PORT}:${APP_PORT}
-    depends_on:
-      - db_mysql
-      - db_redis
     environment:
       NODE_ENV: production
       MYSQL_HOST: db_mysql
       REDIS_HOST: db_redis
       MYSQL_PORT: 3306
       REDIS_PORT: 6379
-    command: >-
-      bash -c "
-      /app/wait-for-it.sh db_mysql:${MYSQL_PORT} -t 10 --
-      /app/wait-for-it.sh db_redis:${REDIS_PORT} -t 10 --
-      npm run start:production
-      "
+    networks:
+      - database-mysql
+      - database-redis
 
-  db_mysql:
-    image: mysql:8.0.31
-    container_name: mysql8
-    restart: always
-    environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-    ports:
-      - ${MYSQL_PORT}:3306
-    command: --character-set-server=utf8mb4
-      --collation-server=utf8mb4_general_ci
-      --explicit_defaults_for_timestamp=true
-    volumes:
-      - ${MYSQL_VOLUMES_DATA}:/var/lib/mysql
-
-  db_redis:
-    image: redis:7
-    container_name: redis7
-    restart: always
-    ports:
-      - ${REDIS_PORT}:6379
-    volumes:
-      - ${REDIS_VOLUMES_DATA}:/data
-    command: /bin/bash -c "redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes"
+networks:
+  database-mysql:
+    external: true
+    name: ${COMPOSE_DATABASE_PROJECT_NAME}_mysql
+  database-redis:
+    external: true
+    name: ${COMPOSE_DATABASE_PROJECT_NAME}_redis

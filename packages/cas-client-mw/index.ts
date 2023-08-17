@@ -2,7 +2,6 @@ import express from 'express';
 import type { NextFunction, Request, RequestHandler, Response, Router } from 'express';
 import axios from 'axios';
 import session from 'express-session';
-import getUniCode from './getUniCode';
 
 type apiMapType = {
   login: string;
@@ -23,7 +22,7 @@ type optionTypes = {
 
 export default class Cas {
   static loginPage: string = 'https://yinpo.space/cas'; // CAS login page url
-  static serviceUrl: string = ''; // CAS service base url
+  static serviceUrl: string = 'https://api.yinpo.space/cas'; // CAS service base url
   static prefixPath: string = '/cas-server';
   static casApi: casApiType = {
     validate: '/user/st',
@@ -43,7 +42,6 @@ export default class Cas {
     this.token = option.token;
     this.domain = option.domain;
     this.router = express.Router();
-    this.apiMap = option.apiMap;
     Object.assign(this.apiMap, option.apiMap);
 
     // 载入session
@@ -66,9 +64,11 @@ export default class Cas {
     return this.router;
   }
 
-  private async checkST(req: Request, res: Response, next: NextFunction) {
+  private checkST = async (req: Request, res: Response, next: NextFunction) => {
     const { ST } = req.query;
-    const response = await axios.post(this.apiMap.login, { ST, token: this.token, domain: this.domain });
+    const response = await axios.post(Cas.serviceUrl + '/user/st', { ST, token: this.token, domain: this.domain });
+
+    console.log('=> checkST', response.data);
 
     if (response.data.code !== 0) {
       res.redirect(Cas.loginPage);
@@ -78,15 +78,15 @@ export default class Cas {
     req.session.user = response.data.data;
 
     res.status(200).json(response.data.data);
-  }
+  };
 
-  private async logout(req: Request, res: Response, next: NextFunction) {
+  private logout = async (req: Request, res: Response, next: NextFunction) => {
     req.session.user = null;
     res.status(200).json({ data: '退出成功！' });
-  }
+  };
 
-  private async profile(req: Request, res: Response, next: NextFunction) {
+  private profile = async (req: Request, res: Response, next: NextFunction) => {
     if (!req.session.user) res.status(401).json({ message: '未登录！' });
     res.status(200).json({ data: req.session.user });
-  }
+  };
 }

@@ -156,7 +156,31 @@ export const profile = async (req: Request, res: Response, next: NextFunction): 
 
   const profile = decipher(TGT);
 
-  success(res, { data: profile });
+  const repository = dataSource.getRepository(User);
+  const user = await repository.findOne({ where: { unId: profile.unId } });
+
+  if (!user) {
+    fail(res, { code: resCode.MISTAKE, message: '用户不存在' });
+    return;
+  }
+  // 用户状态校验
+  if (!user.common.isActive) {
+    fail(res, { code: resCode.DISABLED, message: '该用户已禁用' });
+    return;
+  }
+
+  const userInfo = {
+    name: user.name,
+    email: user.email,
+    unId: user.unId,
+    avatar: user.avatar,
+    manager: user.manager,
+    phone: user.phone,
+    birth: user.birth,
+    gender: user.gender,
+  };
+
+  success(res, { data: userInfo });
   return;
 };
 
@@ -185,60 +209,8 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
 };
 
 /**
- * 校验ST凭证，ST的生成与用户和app相关，如果校验对不上则失效
- * @param req.body.name string
- * @param req.body.password string
- * @method POST
- */
-export const checkST = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { token, ST, domain, result } = validate(
-    {
-      token: { type: 'string', required: true },
-      ST: { type: 'string', required: true },
-      domain: { type: 'string', required: true, validation: valid.isUrl },
-    },
-    req.body,
-  );
-  // 参数校验
-  if (result.length) {
-    fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
-    return;
-  }
-
-  const { CAS_TGC } = req.cookies;
-  const currentTGT = await redis.getex(`TGC:${CAS_TGC}`, 'EX', expires.TGC_EXPIRE);
-
-  const repository = dataSource.getRepository(Application);
-  const appInfo = await repository.findOne({ where: [{ token, domain }] });
-  if (!appInfo) {
-    fail(res, { code: resCode.REFUSE, message: '认证失败，应用未授权' });
-    return;
-  }
-
-  const { TGT: targetTGT, token: targetToken } = await redis.hgetall(`ST:${ST}`);
-  redis.del(`ST:${ST}`);
-
-  const targetApp = await repository.findOne({ where: { token: targetToken } });
-
-  if (!targetApp) {
-    fail(res, { code: resCode.REFUSE, message: `目标应用${targetApp.domain}未注册！` });
-    return;
-  }
-
-  if (!targetTGT || targetTGT !== currentTGT || targetApp.token !== token) {
-    fail(res, { code: resCode.REFUSE, message: 'ST认证失败，请重新授权！' });
-    return;
-  }
-
-  const userInfo = decipher(currentTGT);
-
-  // 提示认证成功
-  success(res, { message: 'ST验证成功！', data: userInfo });
-  return;
-};
-
-/**
- * 授予 ST
+ * 授予 ST，ST将会关联当前登录的用户信息，并且根据domain关联app信息
+ * 所以在验证ST的时候只能在对应的app站点验证，并获取用户信息
  * @param {url} domain req.query.domain
  * @method POST
  */

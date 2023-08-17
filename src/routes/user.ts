@@ -10,8 +10,6 @@ router.post('/register', UserController.register);
 
 router.post('/login', UserController.login);
 
-router.post('/st', authentication.isUser, UserController.checkST);
-
 router.get('/getst', authentication.isUser, UserController.getST);
 
 router.get('/profile', authentication.isUser, UserController.profile);

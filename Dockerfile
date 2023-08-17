@@ -19,3 +19,5 @@ RUN chmod +x /app/wait-for-it.sh
 
 # open port 5000
 EXPOSE 5000
+
+CMD [ "npm", "run", "start:production" ]

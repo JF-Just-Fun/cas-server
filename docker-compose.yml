@@ -15,6 +15,8 @@ services:
       --explicit_defaults_for_timestamp=true
     volumes:
       - ${MYSQL_VOLUMES_DATA}:/var/lib/mysql
+    networks:
+      - mysql
 
   db_redis:
     image: redis:7
@@ -25,3 +27,9 @@ services:
     volumes:
       - ${REDIS_VOLUMES_DATA}:/data
     command: /bin/bash -c "redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes"
+    networks:
+      - redis
+
+networks:
+  redis:
+  mysql:
