@@ -21,7 +21,7 @@ export class LoginLog {
 
   // 来源系统
   @Column('varchar', { nullable: true })
-  soure: string;
+  source: string;
 
   // 操作类型（login、logout）
   @Column('varchar', { nullable: true })

@@ -50,6 +50,9 @@ export default class Cas {
         secret: 'yinpo-cas-client-session-secret-key',
         resave: false,
         saveUninitialized: true,
+        cookie: {
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+        },
       }),
     );
   }
@@ -66,9 +69,7 @@ export default class Cas {
 
   private checkST = async (req: Request, res: Response, next: NextFunction) => {
     const { ST } = req.query;
-    const response = await axios.post(Cas.serviceUrl + '/user/st', { ST, token: this.token, domain: this.domain });
-
-    console.log('=> checkST', response.data);
+    const response = await axios.post(Cas.serviceUrl + '/ticket/st', { ST, token: this.token, domain: this.domain });
 
     if (response.data.code !== 0) {
       res.redirect(Cas.loginPage);
@@ -86,7 +87,10 @@ export default class Cas {
   };
 
   private profile = async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.session.user) res.status(401).json({ message: '未登录！' });
+    if (!req.session.user) {
+      res.status(401).json({ message: '未登录！' });
+      return;
+    }
     res.status(200).json({ data: req.session.user });
   };
 }

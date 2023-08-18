@@ -37,3 +37,8 @@ export const MISTAKE = 25;
  * 拒绝，未授权
  */
 export const REFUSE = 26;
+
+/**
+ * 拒绝，权限不够
+ */
+export const IN_PRIVILEGE = 27;

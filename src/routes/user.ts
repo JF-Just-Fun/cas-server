@@ -8,11 +8,15 @@ router.get('/', UserController.index);
 
 router.post('/register', UserController.register);
 
-router.post('/login', UserController.login);
+router.post('/login', UserController.login, UserController.profile);
 
 router.get('/getst', authentication.isUser, UserController.getST);
 
 router.get('/profile', authentication.isUser, UserController.profile);
+
+router.post('/update', authentication.isUser, UserController.update, UserController.profile);
+
+router.get('/query', authentication.isManager, UserController.query);
 
 router.delete('/logout', authentication.isUser, UserController.logout);
 

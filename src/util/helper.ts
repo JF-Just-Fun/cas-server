@@ -24,7 +24,7 @@ export const getUniCode = (length: number = 16, prefix: string = '', suffix: str
 
 type validationRulesType = {
   [key: string]: {
-    type: string;
+    type: 'string' | 'boolean' | 'timestamp' | 'number';
     default?: any;
     required?: boolean;
     from?: any;
@@ -40,6 +40,7 @@ type validationType = {
 
 export const validate = (rules: validationRulesType, data: validationDataType): validationType => {
   let result: string[] = [];
+  const summary = {};
   if (rules instanceof Object) {
     if (!data) {
       result.push(`无参数`);
@@ -68,15 +69,22 @@ export const validate = (rules: validationRulesType, data: validationDataType): 
 
       // type
       let skipType = false;
-      switch (value['type']) {
-        case 'number':
-          data[item] = parseInt(data[item]);
-          break;
-        case 'timestamp':
-          data[item] = new Date(parseInt(data[item]));
-          skipType = !isNaN(Date.prototype.getTime.call(data[item]));
-          break;
-        default:
+      try {
+        switch (value['type']) {
+          case 'number':
+            data[item] = parseInt(data[item]);
+            break;
+          case 'boolean':
+            data[item] = JSON.parse(data[item]);
+            break;
+          case 'timestamp':
+            data[item] = new Date(parseInt(data[item]));
+            skipType = !isNaN(Date.prototype.getTime.call(data[item]));
+            break;
+          default:
+        }
+      } catch (error) {
+        result.push(`参数${item}格式解析${value['type']}错误`);
       }
       if (!skipType && typeof data[item] !== value['type']) {
         result.push(`参数${item}必须是${value['type']}`);
@@ -89,18 +97,21 @@ export const validate = (rules: validationRulesType, data: validationDataType): 
           result.push(`参数${item}格式不正确`);
         }
       }
+
+      if (data[item] !== undefined && data[item] !== null) summary[item] = data[item];
     }
 
-    return { result, ...data };
+    return { result, ...data, summary };
   }
 
-  return { result: ['参数校验规则错误'], ...data };
+  return { result: ['参数校验规则错误'], ...data, summary };
 };
 
 type ResponseData = {
   code?: number;
   message?: string;
   data?: any;
+  count?: number;
 };
 // request success
 export const success = (res: Response, data: ResponseData = {}) => {

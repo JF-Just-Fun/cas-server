@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import createError from 'http-errors';
 import { dataSource, redis } from '../database';
+import { Not } from 'typeorm';
 import { LoginLog, User, Application } from '../models';
 import { encryption, valid, validate, success, fail, cipher, decipher, getUniCode } from '../util';
 import { resCode, expires } from '../enums';
@@ -89,10 +90,6 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     return;
   }
 
-  // 清除之前的TGT
-  const { CAS_TGC } = req.cookies;
-  redis.del(`TGC:${CAS_TGC}`);
-
   // todo: SMS code to login and register
   const repository = dataSource.getRepository(User);
   const user = await repository.findOne({ where: [{ email, password: encryption(password) }] });
@@ -102,19 +99,13 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     return;
   }
 
-  // 密码校验
-  if (encryption(password) !== user.password) {
-    fail(res, { code: resCode.MISTAKE, message: '密码错误' });
-    return;
-  }
-
   // 用户状态校验
   if (!user.common.isActive) {
     fail(res, { code: resCode.DISABLED, message: '该用户已禁用' });
     return;
   }
 
-  const userInfo = {
+  const profile = {
     name: user.name,
     email: user.email,
     unId: user.unId,
@@ -125,18 +116,8 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     gender: user.gender,
   };
 
-  // 生成TGT
-  const TGT = cipher(userInfo);
-
-  // 生成TGC
-  const TGC = getUniCode();
-
-  res.cookie('CAS_TGC', TGC, { maxAge: expires.TGC_EXPIRE * 1000, httpOnly: true });
-
-  redis.setex(`TGC:${TGC}`, expires.TGC_EXPIRE, TGT);
-
-  success(res, { data: userInfo });
-  return;
+  res.locals.profile = profile;
+  next();
 };
 
 /**
@@ -147,14 +128,9 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 export const profile = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { CAS_TGC } = req.cookies;
 
-  const TGT = await redis.getex(`TGC:${CAS_TGC}`, 'EX', expires.TGC_EXPIRE);
-
-  if (!TGT) {
-    fail(res, { code: resCode.REFUSE, message: 'cookie无效，请重新登录！' });
-    return;
-  }
-
-  const profile = decipher(TGT);
+  // 清除之前的TGT
+  redis.del(`TGC:${CAS_TGC}`);
+  const profile = res.locals.profile;
 
   const repository = dataSource.getRepository(User);
   const user = await repository.findOne({ where: { unId: profile.unId } });
@@ -180,8 +156,117 @@ export const profile = async (req: Request, res: Response, next: NextFunction): 
     gender: user.gender,
   };
 
+  // 生成新的TGT
+  const TGT = cipher(userInfo);
+
+  // 生成新的TGC
+  const TGC = getUniCode();
+
+  res.cookie('CAS_TGC', TGC, { maxAge: expires.TGC_EXPIRE * 1000, httpOnly: true });
+
+  redis.setex(`TGC:${TGC}`, expires.TGC_EXPIRE, TGT);
+
   success(res, { data: userInfo });
+};
+
+/**
+ * 获取系统用户信息
+ * @method GET
+ */
+export const query = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
+  const { page, size, result } = validate(
+    {
+      page: { type: 'number', default: 1 },
+      size: { type: 'number', default: 20 },
+    },
+    req.query,
+  );
+  // 参数校验
+  if (result.length) {
+    fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
+    return;
+  }
+
+  const repository = dataSource.getRepository(User);
+  const userList = await repository.findAndCount({
+    take: size,
+    skip: (page - 1) * size,
+    where: { common: { isActive: true } },
+  });
+
+  const List = userList[0].reduce((res, item) => {
+    delete item.common;
+    res.push(item);
+    return res;
+  }, []);
+
+  success(res, { data: List, count: userList[1] });
   return;
+};
+
+/**
+ * 更新用户信息
+ * @method GET
+ */
+export const update = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
+  const { summary, result } = validate(
+    {
+      name: { type: 'string' },
+      password: { type: 'string' },
+      email: { type: 'string', validation: valid.isEmail },
+      birth: { type: 'string' },
+      phone: { type: 'string', validation: valid.isPhone },
+      avatar: { type: 'string' },
+      gender: { type: 'string' },
+      manager: { type: 'boolean' },
+    },
+    req.body,
+  );
+  // 参数校验
+  if (result.length) {
+    fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
+    return;
+  }
+
+  const profile = res.locals.profile;
+
+  const repository = dataSource.getRepository(User);
+  const user = await repository.findOne({ where: { unId: profile.unId } });
+
+  if (!user) {
+    fail(res, { code: resCode.MISTAKE, message: '用户不存在' });
+    return;
+  }
+  // 用户状态校验
+  if (!user.common.isActive) {
+    fail(res, { code: resCode.DISABLED, message: '该用户已禁用' });
+    return;
+  }
+
+  if (summary.password) summary.password = encryption(summary.password);
+
+  // 字段占用校验
+  const duWhere = ['phone', 'email', 'name'].reduce((res, key) => {
+    if (summary[key]) res.push({ [key]: summary[key], unId: Not(profile.unId) });
+    return res;
+  }, []);
+  if (duWhere.length) {
+    const duplicateUser = await repository.findOne({ where: duWhere });
+    if (duplicateUser?.name === summary.name) {
+      fail(res, { code: resCode.REFUSE, message: `更新失败，用户名：${duplicateUser.name}已存在` });
+      return;
+    } else if (duplicateUser?.phone === summary.phone) {
+      fail(res, { code: resCode.REFUSE, message: `更新失败，用户手机：${duplicateUser.phone}已存在` });
+      return;
+    } else if (duplicateUser?.email === summary.email) {
+      fail(res, { code: resCode.REFUSE, message: `更新失败，用户邮箱：${duplicateUser.email}已存在` });
+      return;
+    }
+  }
+
+  await repository.update({ unId: profile.unId }, summary);
+
+  next();
 };
 
 /**
@@ -192,17 +277,10 @@ export const profile = async (req: Request, res: Response, next: NextFunction): 
 export const logout = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { CAS_TGC } = req.cookies;
 
-  res.clearCookie('CAS_TGC');
-
-  const TGT = await redis.getex(`TGC:${CAS_TGC}`, 'EX', expires.TGC_EXPIRE);
-
-  if (!TGT) {
-    success(res, { code: resCode.REFUSE, data: 'cookie无效！' });
-    return;
-  }
-  const profile = decipher(TGT);
+  const profile = res.locals.profile;
 
   redis.del(`TGC:${CAS_TGC}`);
+  res.clearCookie('CAS_TGC');
 
   success(res, { message: `用户<${profile.name}>登出成功！` });
   return;
@@ -215,25 +293,19 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
  * @method POST
  */
 export const getST = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { CAS_TGC } = req.cookies;
   const { domain, result } = validate(
     {
       domain: { type: 'string', required: true, validation: valid.isUrl },
     },
     req.query,
   );
-
   // 参数校验
   if (result.length) {
     fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
     return;
   }
 
-  const TGT = await redis.getex(`TGC:${CAS_TGC}`, 'EX', expires.TGC_EXPIRE);
-  if (!TGT) {
-    fail(res, { code: resCode.REFUSE, message: '登录校验失败，请先登录！' });
-    return;
-  }
+  const TGT = res.locals.TGT;
 
   const repository = dataSource.getRepository(Application);
   const appInfo = await repository.findOne({ where: { domain } });
@@ -252,7 +324,6 @@ export const getST = async (req: Request, res: Response, next: NextFunction): Pr
   const ST = getUniCode(12);
   redis.hset(`ST:${ST}`, STData);
   redis.expire(`ST:${ST}`, expires.ST_EXPIRE);
-  console.log('=> redirect url: ', `${domain}?ST=${ST}`);
 
   res.redirect(301, `${domain}?ST=${ST}`);
   return;

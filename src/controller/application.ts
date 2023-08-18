@@ -71,10 +71,10 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
   const { name, token, domain, desc, expire, result } = validate(
     {
       token: { type: 'string', required: true },
-      name: { type: 'string', required: false },
-      domain: { type: 'string', required: false },
-      desc: { type: 'string', required: false },
-      expire: { type: 'timestamp', required: false },
+      name: { type: 'string' },
+      domain: { type: 'string', validation: valid.isUrl },
+      desc: { type: 'string' },
+      expire: { type: 'timestamp' },
     },
     req.body,
   );
@@ -104,7 +104,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
 
   delete appInfo.common;
 
-  success(res, { message: `token: ${token} updated`, data: appInfo });
+  success(res, { message: `app: ${token} updated!!!` });
   return;
 };
 
@@ -144,18 +144,20 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
 /**
  * 项目列表
  * @param req.query.domain string
+ * @param req.query.token string
+ * @param req.query.name string
  * @param req.query.page string
  * @param req.query.size string
  * @method GET
  */
-export const list = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
+export const query = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
   const { page, size, token, domain, name, result } = validate(
     {
       page: { type: 'number', default: 1 },
       size: { type: 'number', default: 20 },
-      token: { type: 'string', required: false },
-      name: { type: 'string', required: false },
-      domain: { type: 'string', required: false },
+      token: { type: 'string' },
+      name: { type: 'string' },
+      domain: { type: 'string' },
     },
     req.query,
   );
@@ -169,7 +171,7 @@ export const list = async (req: Request, res: Response, next: NextFunction): Pro
   const where = Object.keys(params).reduce((acc, key) => {
     const value = params[key];
     if (value !== undefined) {
-      acc.push({ [key]: value });
+      acc.push({ [key]: value, common: { isActive: true } });
     }
     return acc;
   }, []);
@@ -186,54 +188,16 @@ export const list = async (req: Request, res: Response, next: NextFunction): Pro
     return;
   }
 
-  appList[0].forEach((item) => {
+  const List = appList[0].reduce((res, item) => {
     if (item.common) delete item.common;
-  });
+    res.push(item);
+    return res;
+  }, []);
 
   success(res, {
     message: '成功',
-    data: {
-      rows: appList[0] || [],
-      count: appList[1] || 0,
-    },
-  });
-  return;
-};
-
-/**
- * 项目详情
- * @param req.query.token string
- * @method GET
- */
-export const query = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { token, code, result } = validate(
-    {
-      token: { type: 'string', required: true },
-    },
-    req.query,
-  );
-  // 参数校验
-  if (code) {
-    fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
-    return;
-  }
-
-  const repository = dataSource.getRepository(Application);
-  const appInfo = await repository.findOne({ where: { token } });
-
-  // user repeated
-  if (!appInfo || !appInfo.common.isActive) {
-    fail(res, { code: resCode.NOT_EXIST, message: `数据不存在` });
-    return;
-  }
-
-  delete appInfo.common;
-
-  success(res, {
-    message: '成功',
-    data: {
-      ...appInfo,
-    },
+    data: List,
+    count: appList[1],
   });
   return;
 };

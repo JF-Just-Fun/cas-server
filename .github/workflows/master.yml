@@ -74,9 +74,6 @@ jobs:
 
   cas-client-mw:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
 
     steps:
       - name: Checkout
@@ -88,19 +85,11 @@ jobs:
           node-version: 16.x
           registry-url: https://registry.npmjs.org/
 
-      - name: Install deps
+      - name: Install deps, then Build and Publish
         run: |
           cd ./packages/cas-client-mw
           npm ci --legacy-peer-deps
-
-      - name: Build Package
-        run: |
-          cd ./packages/cas-client-mw
           npm run build
-
-      - name: Publish package
-        run: |
-          cd ./packages/cas-client-mw
           npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
