@@ -31,9 +31,9 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     {
       name: { type: 'string', required: true },
       password: { type: 'string', required: true },
-      email: { type: 'string', required: true, validation: valid.isEmail },
-      phone: { type: 'string', required: false, validation: valid.isPhone },
-      avatar: { type: 'string', required: false },
+      email: { type: 'string', validation: valid.isEmail },
+      phone: { type: 'string', validation: valid.isPhone },
+      avatar: { type: 'string' },
     },
     req.body,
   );
@@ -214,7 +214,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
       name: { type: 'string' },
       password: { type: 'string' },
       email: { type: 'string', validation: valid.isEmail },
-      birth: { type: 'string' },
+      birth: { type: 'date' },
       phone: { type: 'string', validation: valid.isPhone },
       avatar: { type: 'string' },
       gender: { type: 'string' },
@@ -252,15 +252,17 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
   }, []);
   if (duWhere.length) {
     const duplicateUser = await repository.findOne({ where: duWhere });
-    if (duplicateUser?.name === summary.name) {
-      fail(res, { code: resCode.REFUSE, message: `更新失败，用户名：${duplicateUser.name}已存在` });
-      return;
-    } else if (duplicateUser?.phone === summary.phone) {
-      fail(res, { code: resCode.REFUSE, message: `更新失败，用户手机：${duplicateUser.phone}已存在` });
-      return;
-    } else if (duplicateUser?.email === summary.email) {
-      fail(res, { code: resCode.REFUSE, message: `更新失败，用户邮箱：${duplicateUser.email}已存在` });
-      return;
+    if (duplicateUser) {
+      if (duplicateUser?.name === summary.name) {
+        fail(res, { code: resCode.REFUSE, message: `更新失败，用户名：${duplicateUser.name}已存在` });
+        return;
+      } else if (duplicateUser?.phone === summary.phone) {
+        fail(res, { code: resCode.REFUSE, message: `更新失败，用户手机：${duplicateUser.phone}已存在` });
+        return;
+      } else if (duplicateUser?.email === summary.email) {
+        fail(res, { code: resCode.REFUSE, message: `更新失败，用户邮箱：${duplicateUser.email}已存在` });
+        return;
+      }
     }
   }
 

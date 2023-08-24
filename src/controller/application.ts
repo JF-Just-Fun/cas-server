@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import createError from 'http-errors';
 import { dataSource, redis } from '../database';
-import { expires, resCode } from '../enums';
+import { resCode } from '../enums';
 import { LoginLog, User, Application } from '../models';
 import { encryption, valid, validate, success, fail, getUniCode } from '../util';
 
@@ -22,11 +22,12 @@ export const index = (req: Request, res: Response, next: NextFunction): Promise<
  * @method POST
  */
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<RequestHandler> => {
-  const { name, domain, desc, result } = validate(
+  const { name, domain, desc, result, expire } = validate(
     {
       name: { type: 'string', required: true },
       domain: { type: 'string', required: true, validation: valid.isUrl },
-      desc: { type: 'string', required: false },
+      desc: { type: 'string' },
+      expire: { type: 'timestamp' },
     },
     req.body,
   );
@@ -52,6 +53,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     domain,
     desc,
     token,
+    expire,
   });
 
   success(res, { message: `${name}:${domain} registered successful !`, data: { token } });

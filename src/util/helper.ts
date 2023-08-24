@@ -24,7 +24,7 @@ export const getUniCode = (length: number = 16, prefix: string = '', suffix: str
 
 type validationRulesType = {
   [key: string]: {
-    type: 'string' | 'boolean' | 'timestamp' | 'number';
+    type: 'string' | 'boolean' | 'timestamp' | 'number' | 'date';
     default?: any;
     required?: boolean;
     from?: any;
@@ -79,6 +79,10 @@ export const validate = (rules: validationRulesType, data: validationDataType): 
             break;
           case 'timestamp':
             data[item] = new Date(parseInt(data[item]));
+            skipType = !isNaN(Date.prototype.getTime.call(data[item]));
+            break;
+          case 'date':
+            data[item] = new Date(data[item]);
             skipType = !isNaN(Date.prototype.getTime.call(data[item]));
             break;
           default:
