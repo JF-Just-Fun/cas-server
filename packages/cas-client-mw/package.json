@@ -1,6 +1,6 @@
 {
   "name": "cas-client-mw",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "配套的CAS client中间件",
   "type": "module",
   "main": "dist/index.cjs.js",

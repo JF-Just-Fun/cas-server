@@ -1,4 +1,4 @@
-name: cas server
+name: cas client middleware
 
 # Controls when the workflow will run
 on:
