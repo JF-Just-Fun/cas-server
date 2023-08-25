@@ -21,7 +21,7 @@ export const checkST = async (req: Request, res: Response, next: NextFunction): 
   );
   // 参数校验
   if (result.length) {
-    fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
+    fail(res, { code: resCode.INVALID, message: result.join(';') });
     return;
   }
 

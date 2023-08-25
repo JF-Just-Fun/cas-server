@@ -33,7 +33,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
   );
   // 参数校验
   if (result.length) {
-    fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
+    fail(res, { code: resCode.MISTAKE, message: result.join(';') });
     return;
   }
 
@@ -82,7 +82,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
   );
   // 参数校验
   if (result.length) {
-    fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
+    fail(res, { code: resCode.MISTAKE, message: result.join(';') });
     return;
   }
 
@@ -124,7 +124,7 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
   );
   // 参数校验
   if (result.length) {
-    fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
+    fail(res, { code: resCode.MISTAKE, message: result.join(';') });
     return;
   }
 
@@ -165,7 +165,7 @@ export const query = async (req: Request, res: Response, next: NextFunction): Pr
   );
   // 参数校验
   if (result.length) {
-    fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
+    fail(res, { code: resCode.MISTAKE, message: result.join(';') });
     return;
   }
 
