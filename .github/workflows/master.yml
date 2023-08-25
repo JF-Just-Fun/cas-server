@@ -71,25 +71,3 @@ jobs:
             echo "CAS_IMAGE=${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_REPOSITORY }}:${{ secrets.DOCKER_IMAGE_TAG }}" >> .env
             docker compose -f ./docker-compose.prod.yml down --remove-orphans
             docker compose -f ./docker-compose.prod.yml up --force-recreate --pull 'always' -d
-
-  cas-client-mw:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Set node version to 16.x
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16.x
-          registry-url: https://registry.npmjs.org/
-
-      - name: Install deps, then Build and Publish
-        run: |
-          cd ./packages/cas-client-mw
-          npm ci --legacy-peer-deps
-          npm run build
-          npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}

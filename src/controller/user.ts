@@ -39,7 +39,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
   );
   // 参数校验
   if (result.length) {
-    fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
+    fail(res, { code: resCode.INVALID, message: result.join(';') });
     return;
   }
   const repository = dataSource.getRepository(User);
@@ -52,7 +52,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     if (user.email === email) message.push(`邮箱:${email}已存在`);
     if (user.phone === phone) message.push(`手机号:${phone}已存在`);
 
-    fail(res, { code: resCode.DISABLED, data: message.join(';') });
+    fail(res, { code: resCode.DISABLED, message: message.join(';') });
     return;
   }
 
@@ -86,7 +86,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
   // 参数校验
   if (result.length) {
-    fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
+    fail(res, { code: resCode.INVALID, message: result.join(';') });
     return;
   }
 
@@ -95,7 +95,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
   const user = await repository.findOne({ where: [{ email, password: encryption(password) }] });
 
   if (!user) {
-    fail(res, { code: resCode.MISTAKE, message: '用户不存在' });
+    fail(res, { code: resCode.MISTAKE, message: '登录失败，邮箱或密码错误！' });
     return;
   }
 
@@ -183,7 +183,7 @@ export const query = async (req: Request, res: Response, next: NextFunction): Pr
   );
   // 参数校验
   if (result.length) {
-    fail(res, { code: resCode.MISTAKE, message: `参数校验错误`, data: result });
+    fail(res, { code: resCode.MISTAKE, message: result.join(';') });
     return;
   }
 
@@ -224,7 +224,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
   );
   // 参数校验
   if (result.length) {
-    fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
+    fail(res, { code: resCode.INVALID, message: result.join(';') });
     return;
   }
 
@@ -303,7 +303,7 @@ export const getST = async (req: Request, res: Response, next: NextFunction): Pr
   );
   // 参数校验
   if (result.length) {
-    fail(res, { code: resCode.INVALID, message: '参数校验错误', data: result });
+    fail(res, { code: resCode.INVALID, message: result.join(';') });
     return;
   }
 
