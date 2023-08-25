@@ -35,3 +35,47 @@
     CAS 可能还提供单点登出功能，允许用户在一个子系统中注销后，自动从其他已登录的子系统中注销。
 
 综上所述，CAS 需要提供认证、用户信息传递、会话管理、安全性和扩展性等关键功能，以实现子系统的单点登录和统一用户管理。具体的功能和配置可能会因 CAS 的实际实现和子系统的需求而有所不同。
+
+## 使用方式
+
+1. installation
+
+```shell
+npm i cas-client-mw
+```
+
+2. usage
+
+```js
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import casClient from 'cas-client-mw/dist/index.esm.js';
+
+const app = express();
+
+app.use(express.json());
+app.use(cookieParser());
+
+const cas = new casClient({
+  token: 'gkPHX7d9KADL',
+  domain: 'http://yinpo.space',
+  ignore: [],
+  apiMap: {},
+});
+
+app.use(cas.core());
+
+app.listen(3000, () => {
+  console.log(`Example app listening on port 3000`);
+});
+
+export default app;
+```
+
+现在应用中会自动载入：`/login`, `/profile`, `/logout` 三个路由
+
+如果项目使用的是`commonjs`模块化规范，则使用一下方式导入
+
+```js
+const casClient = require('cas-client-mw');
+```
